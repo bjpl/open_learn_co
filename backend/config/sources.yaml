@@ -1,0 +1,244 @@
+# Colombian Data Sources Configuration
+# Complete list of 42+ sources for intelligence gathering and language learning
+
+government:
+  dane:
+    name: "DANE - Estadísticas"
+    url: "https://www.dane.gov.co"
+    api_endpoint: "https://www.dane.gov.co/servicios-al-ciudadano/servicios-de-informacion/api"
+    type: "statistics"
+    priority: "high"
+    rate_limit: "10/minute"
+    auth_type: "api_key"
+    update_frequency: "daily"
+    content_types: ["economic_indicators", "demographics", "census", "inflation", "employment"]
+
+  banco_republica:
+    name: "Banco de la República"
+    url: "https://www.banrep.gov.co"
+    api_endpoint: "https://www.banrep.gov.co/es/servicios-informacion/api"
+    type: "economic"
+    priority: "high"
+    rate_limit: "20/minute"
+    auth_type: "none"
+    update_frequency: "daily"
+    content_types: ["monetary_policy", "exchange_rates", "interest_rates", "economic_reports"]
+
+  datos_gov:
+    name: "Portal de Datos Abiertos"
+    url: "https://www.datos.gov.co"
+    api_endpoint: "https://www.datos.gov.co/api"
+    api_type: "ckan"
+    priority: "high"
+    rate_limit: "100/minute"
+    auth_type: "none"
+    datasets:
+      - "contratos-publicos"
+      - "presupuesto-nacional"
+      - "indicadores-violencia"
+      - "datos-electorales"
+
+  secop:
+    name: "SECOP - Contratación Pública"
+    url: "https://www.colombiacompra.gov.co"
+    api_endpoint: "https://www.colombiacompra.gov.co/transparencia/api/v1"
+    type: "procurement"
+    priority: "high"
+    rate_limit: "30/minute"
+    auth_type: "token"
+    content_types: ["contracts", "tenders", "suppliers", "spending"]
+
+  minhacienda:
+    name: "MinHacienda"
+    url: "https://www.minhacienda.gov.co"
+    type: "fiscal"
+    priority: "medium"
+    scraping_required: true
+    content_types: ["budget", "public_spending", "debt", "tax_collection"]
+
+  dnp:
+    name: "DNP - Planeación Nacional"
+    url: "https://www.dnp.gov.co"
+    type: "planning"
+    priority: "medium"
+    content_types: ["development_plans", "public_investment", "regional_data"]
+
+media:
+  national:
+    el_tiempo:
+      name: "El Tiempo"
+      url: "https://www.eltiempo.com"
+      type: "news"
+      priority: "high"
+      scraping_interval: 30
+      selectors:
+        article: "article.article-container"
+        title: "h1.titulo"
+        content: "div.articulo-contenido"
+
+    el_espectador:
+      name: "El Espectador"
+      url: "https://www.elespectador.com"
+      type: "news"
+      priority: "high"
+      scraping_interval: 30
+      selectors:
+        article: "article.Article"
+        title: "h1.Article-Title"
+        content: "div.Article-Content"
+
+    semana:
+      name: "Revista Semana"
+      url: "https://www.semana.com"
+      type: "news_magazine"
+      priority: "high"
+      scraping_interval: 45
+      selectors:
+        article: "article"
+        title: "h1"
+        content: "div.article-content"
+
+    la_republica:
+      name: "La República"
+      url: "https://www.larepublica.co"
+      type: "business_news"
+      priority: "high"
+      scraping_interval: 60
+      focus: "economic"
+
+    portafolio:
+      name: "Portafolio"
+      url: "https://www.portafolio.co"
+      type: "business_news"
+      priority: "medium"
+      scraping_interval: 60
+
+    la_fm:
+      name: "La FM Radio"
+      url: "https://www.lafm.com.co"
+      type: "radio_news"
+      priority: "medium"
+      scraping_interval: 30
+
+    blu_radio:
+      name: "Blu Radio"
+      url: "https://www.bluradio.com"
+      type: "radio_news"
+      priority: "medium"
+      scraping_interval: 30
+
+  regional:
+    el_colombiano:
+      name: "El Colombiano"
+      url: "https://www.elcolombiano.com"
+      region: "Antioquia"
+      priority: "medium"
+      scraping_interval: 45
+
+    el_pais:
+      name: "El País Cali"
+      url: "https://www.elpais.com.co"
+      region: "Valle del Cauca"
+      priority: "medium"
+      scraping_interval: 45
+
+    el_heraldo:
+      name: "El Heraldo"
+      url: "https://www.elheraldo.co"
+      region: "Atlántico"
+      priority: "medium"
+      scraping_interval: 45
+
+    el_universal:
+      name: "El Universal"
+      url: "https://www.eluniversal.com.co"
+      region: "Bolívar"
+      priority: "low"
+      scraping_interval: 60
+
+    vanguardia:
+      name: "Vanguardia"
+      url: "https://www.vanguardia.com"
+      region: "Santander"
+      priority: "low"
+      scraping_interval: 60
+
+    la_opinion:
+      name: "La Opinión"
+      url: "https://www.laopinion.com.co"
+      region: "Norte de Santander"
+      priority: "low"
+      scraping_interval: 60
+
+  specialized:
+    dinero:
+      name: "Revista Dinero"
+      url: "https://www.dinero.com"
+      type: "business_magazine"
+      priority: "medium"
+      scraping_interval: 120
+
+    la_silla_vacia:
+      name: "La Silla Vacía"
+      url: "https://www.lasillavacia.com"
+      type: "political_analysis"
+      priority: "high"
+      scraping_interval: 120
+
+    razon_publica:
+      name: "Razón Pública"
+      url: "https://razonpublica.com"
+      type: "analysis"
+      priority: "medium"
+      scraping_interval: 240
+
+    colombia_check:
+      name: "Colombia Check"
+      url: "https://colombiacheck.com"
+      type: "fact_checking"
+      priority: "medium"
+      scraping_interval: 120
+
+academic:
+  universidad_andes:
+    name: "Universidad de los Andes"
+    url: "https://uniandes.edu.co"
+    type: "research"
+    priority: "medium"
+    content_types: ["economic_research", "political_analysis", "social_studies"]
+
+  universidad_nacional:
+    name: "Universidad Nacional"
+    url: "https://unal.edu.co"
+    type: "research"
+    priority: "medium"
+    content_types: ["observatories", "public_policy", "social_research"]
+
+  fedesarrollo:
+    name: "Fedesarrollo"
+    url: "https://www.fedesarrollo.org.co"
+    type: "economic_research"
+    priority: "medium"
+    content_types: ["economic_studies", "policy_analysis", "surveys"]
+
+security:
+  policia_nacional:
+    name: "Policía Nacional"
+    url: "https://www.policia.gov.co"
+    type: "crime_statistics"
+    priority: "high"
+    content_types: ["crime_rates", "security_reports", "regional_statistics"]
+
+  observatorio_ddhh:
+    name: "Observatorio de DDHH"
+    url: "https://www.derechoshumanos.gov.co"
+    type: "human_rights"
+    priority: "high"
+    content_types: ["violations", "conflict_data", "victim_statistics"]
+
+  ideas_paz:
+    name: "Fundación Ideas para la Paz"
+    url: "https://www.ideaspaz.org"
+    type: "security_analysis"
+    priority: "medium"
+    content_types: ["conflict_analysis", "illegal_economies", "peace_process"]
