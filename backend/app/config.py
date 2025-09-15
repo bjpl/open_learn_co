@@ -3,24 +3,45 @@ Configuration management for the platform
 """
 
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 import os
+import secrets
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
 
     # Application
-    APP_NAME: str = "Colombia Intel Platform"
-    DEBUG: bool = False
+    APP_NAME: str = os.getenv("APP_NAME", "Colombia Intel Platform")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     API_V1_PREFIX: str = "/api/v1"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 
-    # Database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://user:password@localhost/colombia_intel"
-    )
+    # Security - MUST be set via environment variable in production
+    SECRET_KEY: str = os.getenv("SECRET_KEY", None)
+
+    @property
+    def get_secret_key(self) -> str:
+        """Get secret key with validation."""
+        if not self.SECRET_KEY:
+            if self.ENVIRONMENT == "production":
+                raise ValueError("SECRET_KEY must be set in production environment")
+            # Generate a secure random key for development only
+            return secrets.token_urlsafe(32)
+        return self.SECRET_KEY
+
+    # Database - MUST be configured via environment variable
+    DATABASE_URL: str = os.getenv("DATABASE_URL", None)
+
+    @property
+    def get_database_url(self) -> str:
+        """Get database URL with validation."""
+        if not self.DATABASE_URL:
+            if self.ENVIRONMENT == "production":
+                raise ValueError("DATABASE_URL must be set in production environment")
+            # Default for development only
+            return "postgresql://localhost/colombia_intel_dev"
+        return self.DATABASE_URL
 
     # Elasticsearch
     ELASTICSEARCH_URL: str = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
@@ -30,10 +51,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ]
+    ALLOWED_ORIGINS: List[str] = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:8000"
+    ).split(",")
 
     # Scraping Configuration
     ENABLE_SCHEDULER: bool = True
@@ -101,9 +122,9 @@ class Settings(BaseSettings):
     VOCABULARY_BATCH_SIZE: int = 20
 
     # Authentication
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_HOURS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "24"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    ALGORITHM: str = "HS256"
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
     class Config:
         env_file = ".env"
