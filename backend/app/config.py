@@ -51,10 +51,15 @@ class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = os.getenv(
+    CORS_ORIGINS: str = os.getenv(
         "CORS_ORIGINS",
         "http://localhost:3000,http://localhost:8000"
-    ).split(",")
+    )
+
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        """Parse CORS origins from environment variable"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
     # Scraping Configuration
     ENABLE_SCHEDULER: bool = True

@@ -13,23 +13,40 @@ from app.database.models import Base
 
 logger = logging.getLogger(__name__)
 
-# Synchronous engine for migrations and scripts
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+# Database URL configuration
+database_url = settings.get_database_url
 
-# Async engine for API operations
-async_engine = create_async_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
+# Configure engines based on database type
+if database_url.startswith("sqlite"):
+    # SQLite configuration
+    engine = create_engine(
+        database_url,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False}
+    )
+    # For SQLite, use aiosqlite for async operations
+    async_database_url = database_url.replace("sqlite://", "sqlite+aiosqlite://")
+    async_engine = create_async_engine(
+        async_database_url,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    # PostgreSQL configuration
+    engine = create_engine(
+        database_url,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20
+    )
+    async_engine = create_async_engine(
+        database_url.replace("postgresql://", "postgresql+asyncpg://"),
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20
+    )
 
 # Session factories
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

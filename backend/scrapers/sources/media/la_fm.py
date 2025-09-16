@@ -4,7 +4,7 @@ RCN Radio's news and opinion station
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -448,7 +448,7 @@ class LaFMScraper(SmartScraper):
             'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
             'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6,
             'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dic': 12
-        ]
+        }
 
         # Date patterns
         patterns = [

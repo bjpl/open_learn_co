@@ -36,7 +36,7 @@ class ScrapedContent(Base):
     # Colombian context
     colombian_entities = Column(JSON)  # Extracted entities
     tags = Column(JSON)  # Article tags
-    metadata = Column(JSON)  # Additional metadata
+    extra_metadata = Column(JSON)  # Additional metadata
 
     # Language learning
     difficulty_score = Column(Float)  # 1.0 to 5.0
