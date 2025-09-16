@@ -1,0 +1,344 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: colombian_platform_db
+    environment:
+      POSTGRES_DB: colombian_platform
+      POSTGRES_USER: colombian_user
+      POSTGRES_PASSWORD: colombian_pass
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U colombian_user -d colombian_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - colombian_network
+
+  # Redis Cache and Session Store
+  redis:
+    image: redis:6-alpine
+    container_name: colombian_platform_redis
+    command: redis-server --appendonly yes --requirepass redis_pass
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - colombian_network
+
+  # Backend API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: colombian_platform_api
+    environment:
+      - DATABASE_URL=postgresql://colombian_user:colombian_pass@postgres:5432/colombian_platform
+      - REDIS_URL=redis://:redis_pass@redis:6379/0
+      - DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app
+
+      # API Configuration
+      - DANE_API_KEY=${DANE_API_KEY:-}
+      - BANREP_BASE_URL=https://www.banrep.gov.co/api
+      - SECOP_API_TOKEN=${SECOP_API_TOKEN:-}
+      - DATOS_GOV_BASE_URL=https://www.datos.gov.co/api
+      - IDEAM_API_KEY=${IDEAM_API_KEY:-}
+
+      # Scraper Configuration
+      - SCRAPER_RATE_LIMIT=5
+      - SCRAPER_TIMEOUT=30
+      - USER_AGENT_ROTATION=true
+
+      # NLP Configuration
+      - ENABLE_ENTITY_EXTRACTION=true
+      - ENABLE_DIFFICULTY_SCORING=true
+      - SPANISH_NLP_MODEL=es_core_news_sm
+    volumes:
+      - ./backend:/app
+      - api_logs:/app/logs
+      - scraped_content:/app/data/scraped
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - colombian_network
+
+  # Background Worker (Celery)
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: colombian_platform_worker
+    environment:
+      - DATABASE_URL=postgresql://colombian_user:colombian_pass@postgres:5432/colombian_platform
+      - REDIS_URL=redis://:redis_pass@redis:6379/0
+      - CELERY_BROKER_URL=redis://:redis_pass@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:redis_pass@redis:6379/1
+      - PYTHONPATH=/app
+
+      # Same API/Scraper config as API
+      - DANE_API_KEY=${DANE_API_KEY:-}
+      - BANREP_BASE_URL=https://www.banrep.gov.co/api
+      - SECOP_API_TOKEN=${SECOP_API_TOKEN:-}
+      - SCRAPER_RATE_LIMIT=5
+      - ENABLE_ENTITY_EXTRACTION=true
+    volumes:
+      - ./backend:/app
+      - worker_logs:/app/logs
+      - scraped_content:/app/data/scraped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A config worker -l info --concurrency=4
+    networks:
+      - colombian_network
+
+  # Task Scheduler (Celery Beat)
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: colombian_platform_scheduler
+    environment:
+      - DATABASE_URL=postgresql://colombian_user:colombian_pass@postgres:5432/colombian_platform
+      - REDIS_URL=redis://:redis_pass@redis:6379/0
+      - CELERY_BROKER_URL=redis://:redis_pass@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:redis_pass@redis:6379/1
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app
+      - scheduler_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    networks:
+      - colombian_network
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: colombian_platform_frontend
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+      - GENERATE_SOURCEMAP=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    command: npm start
+    networks:
+      - colombian_network
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    image: nginx:alpine
+    container_name: colombian_platform_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - static_files:/var/www/static
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - colombian_network
+    profiles:
+      - production
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: colombian_platform_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - colombian_network
+    profiles:
+      - monitoring
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: colombian_platform_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - colombian_network
+    profiles:
+      - monitoring
+
+  # Log Management - ELK Stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+    container_name: colombian_platform_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - colombian_network
+    profiles:
+      - logging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.14.0
+    container_name: colombian_platform_logstash
+    volumes:
+      - ./logging/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logging/logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5000:5000"
+    depends_on:
+      - elasticsearch
+    networks:
+      - colombian_network
+    profiles:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.14.0
+    container_name: colombian_platform_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - colombian_network
+    profiles:
+      - logging
+
+  # Development Tools
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: colombian_platform_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@colombian-platform.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - colombian_network
+    profiles:
+      - development
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: colombian_platform_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redis_pass
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - colombian_network
+    profiles:
+      - development
+
+  # Testing Environment
+  test-db:
+    image: postgres:14-alpine
+    container_name: colombian_platform_test_db
+    environment:
+      POSTGRES_DB: test_colombian_platform
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+    ports:
+      - "5433:5432"
+    networks:
+      - colombian_network
+    profiles:
+      - testing
+
+# Volume definitions
+volumes:
+  postgres_data:
+  redis_data:
+  api_logs:
+  worker_logs:
+  scheduler_logs:
+  scraped_content:
+  static_files:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+  pgadmin_data:
+
+# Network definition
+networks:
+  colombian_network:
+    driver: bridge
