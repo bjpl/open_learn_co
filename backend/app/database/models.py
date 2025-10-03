@@ -47,11 +47,27 @@ class ScrapedContent(Base):
     vocabulary = relationship("ExtractedVocabulary", back_populates="content")
     user_progress = relationship("UserContentProgress", back_populates="content")
 
-    # Indexes for performance
+    # Indexes for performance (Phase 2 optimization - see migration 002)
+    # Target: <50ms p95 latency for common queries
     __table_args__ = (
+        # Existing indexes (basic)
         Index('idx_source_category', 'source', 'category'),
         Index('idx_published_date', 'published_date'),
         Index('idx_difficulty_score', 'difficulty_score'),
+
+        # Additional indexes added in migration 002:
+        # - idx_scraped_content_source (filter by source)
+        # - idx_scraped_content_category (filter by category)
+        # - idx_scraped_content_scraped_at (sort by scrape date)
+        # - idx_scraped_content_is_paywall (partial: free content only)
+        # - idx_scraped_content_source_category_published (composite for common API queries)
+        # - idx_scraped_content_difficulty_published (difficulty filtering + date sort)
+        # - idx_scraped_content_title_gin (Spanish full-text search)
+        # - idx_scraped_content_content_gin (Spanish full-text search)
+        # - idx_scraped_content_fulltext_gin (combined title+content search)
+        # - idx_scraped_content_tags_gin (JSON tag searches)
+        # - idx_scraped_content_entities_gin (JSON entity searches)
+        # - idx_scraped_content_list_covering (covering index for list views)
     )
 
 
@@ -81,6 +97,15 @@ class ContentAnalysis(Base):
 
     # Relationships
     content = relationship("ScrapedContent", back_populates="analyses")
+
+    # Indexes added in migration 002 for performance:
+    # - idx_content_analysis_content_id (FK join optimization)
+    # - idx_content_analysis_sentiment_score (partial: non-null only)
+    # - idx_content_analysis_sentiment_label (filter by sentiment)
+    # - idx_content_analysis_content_processed (composite time-series)
+    # - idx_content_analysis_processed_at (analytics queries)
+    # - idx_content_analysis_entities_gin (JSON entity search)
+    # - idx_content_analysis_topics_gin (JSON topic search)
 
 
 class ExtractedVocabulary(Base):
@@ -114,10 +139,19 @@ class ExtractedVocabulary(Base):
     content = relationship("ScrapedContent", back_populates="vocabulary")
     user_vocabulary = relationship("UserVocabulary", back_populates="vocabulary")
 
-    # Indexes
+    # Indexes for vocabulary search and filtering
     __table_args__ = (
         Index('idx_word_lemma', 'word', 'lemma'),
         Index('idx_difficulty_level', 'difficulty_level'),
+
+        # Additional indexes in migration 002:
+        # - idx_extracted_vocab_content_id (FK join)
+        # - idx_extracted_vocab_word (word search)
+        # - idx_extracted_vocab_difficulty (partial: non-null difficulty)
+        # - idx_extracted_vocab_colombian (partial: Colombian-specific only)
+        # - idx_extracted_vocab_pos (part-of-speech filtering)
+        # - idx_extracted_vocab_word_difficulty (composite search)
+        # - idx_extracted_vocab_frequency (frequency-based queries)
     )
 
 
@@ -141,14 +175,38 @@ class User(Base):
     preferred_regions = Column(JSON)  # Colombian regions of interest
     preferred_sources = Column(JSON)  # Preferred news sources
 
+    # Authentication & Security
+    refresh_token = Column(String(500))  # Current valid refresh token
+    refresh_token_expires_at = Column(DateTime)  # Refresh token expiration
+    is_active = Column(Boolean, default=True)  # Account active status
+    last_login = Column(DateTime)  # Last successful login
+
     # Timestamps
     created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     last_active = Column(DateTime, default=func.now())
 
     # Relationships
     content_progress = relationship("UserContentProgress", back_populates="user")
     vocabulary_progress = relationship("UserVocabulary", back_populates="user")
     learning_sessions = relationship("LearningSession", back_populates="user")
+
+    # Indexes for authentication and user management (critical performance)
+    __table_args__ = (
+        Index('idx_email', 'email'),
+        Index('idx_refresh_token', 'refresh_token'),
+
+        # Additional indexes in migration 002 (auth optimization - target <50ms):
+        # - idx_users_email_unique (case-insensitive unique email for login)
+        # - idx_users_username_unique (case-insensitive unique username)
+        # - idx_users_is_active (partial: active users only)
+        # - idx_users_refresh_token (session management - non-null only)
+        # - idx_users_refresh_expires (partial: valid tokens only)
+        # - idx_users_last_login (activity tracking)
+        # - idx_users_created_at (user analytics)
+        # - idx_users_role (role-based queries)
+        # - idx_users_spanish_level (partial: users with level set)
+    )
 
 
 class UserContentProgress(Base):
@@ -177,9 +235,16 @@ class UserContentProgress(Base):
     user = relationship("User", back_populates="content_progress")
     content = relationship("ScrapedContent", back_populates="user_progress")
 
-    # Unique constraint
+    # Unique constraint and performance indexes
     __table_args__ = (
         Index('idx_user_content', 'user_id', 'content_id', unique=True),
+
+        # Additional indexes in migration 002:
+        # - idx_user_progress_user_content (composite lookup)
+        # - idx_user_progress_user_accessed (user activity timeline)
+        # - idx_user_progress_user_completed (completion tracking)
+        # - idx_user_progress_content_id (content popularity)
+        # - idx_user_progress_read_percentage (partial: incomplete reads)
     )
 
 
@@ -210,9 +275,17 @@ class UserVocabulary(Base):
     user = relationship("User", back_populates="vocabulary_progress")
     vocabulary = relationship("ExtractedVocabulary", back_populates="user_vocabulary")
 
-    # Unique constraint
+    # Unique constraint and spaced repetition indexes
     __table_args__ = (
         Index('idx_user_vocabulary', 'user_id', 'vocabulary_id', unique=True),
+
+        # Additional indexes in migration 002 (spaced repetition optimization):
+        # - idx_user_vocab_user_review (partial: due for review)
+        # - idx_user_vocab_user_mastery (mastery level tracking)
+        # - idx_user_vocab_next_review (partial: reviews within 24h)
+        # - idx_user_vocab_user_id (user lookup)
+        # - idx_user_vocab_vocabulary_id (vocabulary lookup)
+        # - idx_user_vocab_mastery_covering (covering: avoid table lookup)
     )
 
 
@@ -243,6 +316,14 @@ class LearningSession(Base):
 
     # Relationships
     user = relationship("User", back_populates="learning_sessions")
+
+    # Indexes added in migration 002 for session tracking:
+    # - idx_learning_session_user_started (user session history)
+    # - idx_learning_session_type (session type analytics)
+    # - idx_learning_session_user_date (streak calculation - date-based)
+    # - idx_learning_session_active (partial: active sessions only)
+    # - idx_learning_session_content_gin (JSON content tracking)
+    # - idx_learning_session_vocab_gin (JSON vocabulary tracking)
 
 
 class IntelligenceAlert(Base):
@@ -275,8 +356,17 @@ class IntelligenceAlert(Base):
     created_at = Column(DateTime, default=func.now())
     expires_at = Column(DateTime)
 
-    # Indexes
+    # Indexes for alert filtering and monitoring
     __table_args__ = (
         Index('idx_alert_type_status', 'alert_type', 'status'),
         Index('idx_created_at', 'created_at'),
+
+        # Additional indexes in migration 002:
+        # - idx_alerts_status (partial: active/pending alerts only)
+        # - idx_alerts_type_severity (composite prioritization)
+        # - idx_alerts_created_at (time-based queries)
+        # - idx_alerts_expires_at (partial: valid unexpired alerts)
+        # - idx_alerts_acknowledged_by (partial: acknowledged alerts)
+        # - idx_alerts_keywords_gin (JSON keyword search)
+        # - idx_alerts_entities_gin (JSON entity search)
     )

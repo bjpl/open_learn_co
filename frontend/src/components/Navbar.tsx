@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Database, Newspaper, TrendingUp, BarChart3, Globe } from 'lucide-react'
+import { Home, Database, Newspaper, TrendingUp, BarChart3, Globe, User, LogOut, LogIn, Settings } from 'lucide-react'
+import { useAuth } from '@/lib/auth/use-auth'
+import { LogoutButton } from './auth/LogoutButton'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
@@ -14,6 +16,7 @@ const navigation = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { isAuthenticated, user, isLoading } = useAuth()
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -32,7 +35,7 @@ export default function Navbar() {
               </div>
             </Link>
           </div>
-          
+
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
               {navigation.map((item) => {
@@ -62,6 +65,61 @@ export default function Navbar() {
             <div className="flex items-center space-x-2 text-sm">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-gray-600 dark:text-gray-400">Live</span>
+            </div>
+
+            {/* Authentication Status */}
+            <div className="flex items-center space-x-3 border-l border-gray-200 dark:border-gray-700 pl-4">
+              {isLoading ? (
+                <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+              ) : isAuthenticated && user ? (
+                <>
+                  {/* User Menu */}
+                  <Link
+                    href="/profile"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="hidden lg:inline">{user.full_name || user.email}</span>
+                  </Link>
+
+                  {/* Preferences Link */}
+                  <Link
+                    href="/preferences"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    title="User Preferences"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="hidden lg:inline">Settings</span>
+                  </Link>
+
+                  {/* Logout Button */}
+                  <LogoutButton
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    showIcon={true}
+                  >
+                    <span className="hidden lg:inline">Logout</span>
+                  </LogoutButton>
+                </>
+              ) : (
+                <>
+                  {/* Login Button */}
+                  <Link
+                    href="/login"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="hidden lg:inline">Login</span>
+                  </Link>
+
+                  {/* Register Button */}
+                  <Link
+                    href="/register"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  >
+                    <span>Sign Up</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

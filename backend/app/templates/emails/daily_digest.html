@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Your Daily OpenLearn Digest - {{ date }}{% endblock %}
+
+{% block header %}Your Daily Digest{% endblock %}
+
+{% block content %}
+<h2 style="color: #333; margin-bottom: 20px;">{{ date }}</h2>
+
+{% if new_articles %}
+<div style="margin: 30px 0;">
+    <h3 style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+        📰 New Articles ({{ article_count }})
+    </h3>
+
+    {% for article in new_articles[:5] %}
+    <div class="article-card">
+        <h3>{{ article.title }}</h3>
+        <p>
+            <strong>Source:</strong> {{ article.source }}
+            {% if article.difficulty > 0 %}
+            <span class="badge badge-difficulty">Level {{ article.difficulty|round|int }}</span>
+            {% endif %}
+        </p>
+        <a href="{{ article.url }}" style="color: #667eea; text-decoration: none;">Read article →</a>
+    </div>
+    {% endfor %}
+
+    {% if article_count > 5 %}
+    <p style="text-align: center; margin-top: 20px;">
+        <a href="{{ settings_url }}/news" class="button">View All {{ article_count }} Articles</a>
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if vocab_to_review %}
+<div style="margin: 30px 0;">
+    <h3 style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+        📚 Vocabulary to Review ({{ vocab_count }})
+    </h3>
+
+    {% for vocab in vocab_to_review[:5] %}
+    <div class="article-card">
+        <h3 style="color: #764ba2;">{{ vocab.word }}</h3>
+        <p>{{ vocab.definition }}</p>
+    </div>
+    {% endfor %}
+
+    <p style="text-align: center; margin-top: 20px;">
+        <a href="{{ settings_url }}/vocabulary/review" class="button">Start Review Session</a>
+    </p>
+</div>
+{% endif %}
+
+{% if streak_days > 0 %}
+<div style="margin: 30px 0; background-color: #f8f8f8; padding: 20px; border-radius: 6px; text-align: center;">
+    <h3 style="color: #333; margin: 0 0 10px 0;">🔥 Learning Streak</h3>
+    <p style="font-size: 36px; font-weight: bold; color: #667eea; margin: 10px 0;">
+        {{ streak_days }} days
+    </p>
+    <p style="color: #666; margin: 10px 0 0 0;">Keep up the great work!</p>
+</div>
+{% endif %}
+
+<div style="margin: 30px 0; padding: 20px; background-color: #e8f4f8; border-left: 4px solid #667eea; border-radius: 4px;">
+    <p style="margin: 0; color: #333;">
+        💡 <strong>Tip of the day:</strong> Practice makes perfect! Try to spend at least 15 minutes daily with Colombian Spanish content.
+    </p>
+</div>
+{% endblock %}

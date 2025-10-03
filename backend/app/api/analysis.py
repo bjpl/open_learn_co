@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from ..database.database import get_db
-from ..database.models import AnalysisResult, ScrapedContent
-from ...nlp.pipeline import NLPPipeline
-from ...nlp.sentiment_analyzer import SentimentAnalyzer
-from ...nlp.topic_modeler import TopicModeler
-from ...nlp.difficulty_scorer import DifficultyScorer
+from ..database.models import ScrapedContent, ContentAnalysis
+from nlp.pipeline import NLPPipeline
+from nlp.sentiment_analyzer import SentimentAnalyzer
+from nlp.topic_modeler import TopicModeler
+from nlp.difficulty_scorer import DifficultyScorer
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -111,32 +111,22 @@ async def analyze_text(
             summary = nlp_pipeline.summarize(text, max_length=150)
             result["summary"] = summary
 
-        # Store in database
-        db_result = AnalysisResult(
-            content=text[:500],  # Store preview
-            sentiment_score=result.get("sentiment", {}).get("polarity"),
-            entities=result.get("entities", []),
-            topics=result.get("topics", []),
-            difficulty_score=result.get("difficulty", {}).get("score"),
-            summary=result.get("summary"),
-            metadata={
-                "analysis_types": request.analysis_types,
-                "language": request.language
-            }
-        )
-        db.add(db_result)
-        db.commit()
-        db.refresh(db_result)
+        # Store in database (using ContentAnalysis model)
+        # Note: ContentAnalysis is linked to ScrapedContent, so we skip DB storage for ad-hoc text
+        # In production, create a ScrapedContent entry first or use separate AnalysisResult table
+
+        # For now, return results without persisting ad-hoc text analysis
+        db_result_id = None
 
         return AnalysisResponse(
-            id=db_result.id,
+            id=db_result_id,
             text_preview=text[:200] + "..." if len(text) > 200 else text,
             sentiment=result.get("sentiment"),
             entities=result.get("entities"),
             topics=result.get("topics"),
             difficulty=result.get("difficulty"),
             summary=result.get("summary"),
-            created_at=db_result.created_at
+            created_at=datetime.now()
         )
 
     except Exception as e:
@@ -187,54 +177,67 @@ async def get_analysis_result(
     """
     Retrieve analysis result by ID.
     """
-    result = db.query(AnalysisResult).filter(AnalysisResult.id == analysis_id).first()
+    result = db.query(ContentAnalysis).filter(ContentAnalysis.id == analysis_id).first()
 
     if not result:
         raise HTTPException(status_code=404, detail="Analysis result not found")
 
     return AnalysisResponse(
         id=result.id,
-        text_preview=result.content,
+        text_preview=result.summary[:200] if result.summary else "No preview available",
         sentiment={
             "polarity": result.sentiment_score,
-            "classification": "positive" if result.sentiment_score > 0 else "negative"
+            "classification": result.sentiment_label or ("positive" if result.sentiment_score and result.sentiment_score > 0 else "negative")
         } if result.sentiment_score is not None else None,
         entities=result.entities,
         topics=result.topics,
-        difficulty={"score": result.difficulty_score} if result.difficulty_score else None,
+        difficulty=None,  # ContentAnalysis doesn't have difficulty_score
         summary=result.summary,
-        created_at=result.created_at
+        created_at=result.processed_at
     )
 
 
 @router.get("/results")
 async def list_analysis_results(
-    skip: int = 0,
-    limit: int = 10,
+    page: int = 1,
+    limit: int = 50,
     db: Session = Depends(get_db)
 ):
     """
-    List recent analysis results.
+    List recent analysis results with offset pagination.
     """
-    results = db.query(AnalysisResult)\
-        .order_by(AnalysisResult.created_at.desc())\
-        .offset(skip)\
-        .limit(limit)\
+    from app.schemas.common_schemas import OffsetPaginationParams
+    from app.utils.pagination import calculate_offset, create_pagination_metadata
+
+    # Validate and apply pagination
+    params = OffsetPaginationParams(page=page, limit=min(limit, 100))
+    offset = params.offset
+
+    results = db.query(ContentAnalysis)\
+        .order_by(ContentAnalysis.processed_at.desc())\
+        .offset(offset)\
+        .limit(params.limit)\
         .all()
 
+    total = db.query(ContentAnalysis).count()
+    metadata = create_pagination_metadata(total, params.page, params.limit)
+
     return {
-        "results": [
+        "items": [
             {
                 "id": r.id,
-                "preview": r.content[:100] + "..." if len(r.content) > 100 else r.content,
+                "preview": r.summary[:100] + "..." if r.summary and len(r.summary) > 100 else r.summary or "No summary",
                 "sentiment_score": r.sentiment_score,
                 "topics_count": len(r.topics) if r.topics else 0,
                 "entities_count": len(r.entities) if r.entities else 0,
-                "created_at": r.created_at
+                "created_at": r.processed_at
             }
             for r in results
         ],
-        "total": db.query(AnalysisResult).count()
+        "total": metadata["total"],
+        "page": metadata["page"],
+        "pages": metadata["pages"],
+        "limit": metadata["limit"]
     }
 
 
@@ -243,19 +246,19 @@ async def get_analysis_statistics(db: Session = Depends(get_db)):
     """
     Get analysis statistics.
     """
-    total_analyses = db.query(AnalysisResult).count()
+    total_analyses = db.query(ContentAnalysis).count()
 
     # Calculate average sentiment
-    avg_sentiment = db.query(AnalysisResult).filter(
-        AnalysisResult.sentiment_score.isnot(None)
+    avg_sentiment = db.query(ContentAnalysis).filter(
+        ContentAnalysis.sentiment_score.isnot(None)
     ).with_entities(
-        db.func.avg(AnalysisResult.sentiment_score)
+        func.avg(ContentAnalysis.sentiment_score)
     ).scalar()
 
     # Get most common entities
     # Note: This is simplified; in production, aggregate from JSON field
-    recent_entities = db.query(AnalysisResult).filter(
-        AnalysisResult.entities.isnot(None)
+    recent_entities = db.query(ContentAnalysis).filter(
+        ContentAnalysis.entities.isnot(None)
     ).limit(100).all()
 
     entity_counts = {}
@@ -269,10 +272,10 @@ async def get_analysis_statistics(db: Session = Depends(get_db)):
         "total_analyses": total_analyses,
         "average_sentiment": float(avg_sentiment) if avg_sentiment else 0,
         "entity_distribution": entity_counts,
-        "last_analysis": db.query(AnalysisResult)\
-            .order_by(AnalysisResult.created_at.desc())\
+        "last_analysis": db.query(ContentAnalysis)\
+            .order_by(ContentAnalysis.processed_at.desc())\
             .first()\
-            .created_at if total_analyses > 0 else None
+            .processed_at if total_analyses > 0 else None
     }
 
 
@@ -304,14 +307,13 @@ def process_batch_analysis(
                 result["topics"] = topics
 
             # Store analysis result
-            db_result = AnalysisResult(
-                content=text[:500],
-                scraped_content_id=content.id,
-                **result,
-                metadata={
-                    "batch_analysis": True,
-                    "source_url": content.url
-                }
+            db_result = ContentAnalysis(
+                content_id=content.id,
+                sentiment_score=result.get("sentiment_score"),
+                sentiment_label="positive" if result.get("sentiment_score", 0) > 0 else "negative" if result.get("sentiment_score", 0) < 0 else "neutral",
+                entities=result.get("entities"),
+                topics=result.get("topics"),
+                summary=text[:500]  # Store preview as summary
             )
             db.add(db_result)
 

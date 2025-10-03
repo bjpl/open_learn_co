@@ -1,0 +1,61 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm run build && npm start",
+      "startServerReadyPattern": "ready on",
+      "url": [
+        "http://localhost:3000",
+        "http://localhost:3000/news",
+        "http://localhost:3000/analytics",
+        "http://localhost:3000/trends",
+        "http://localhost:3000/sources"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1
+        }
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:recommended",
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:seo": ["warn", { "minScore": 0.9 }],
+        "first-contentful-paint": ["error", { "maxNumericValue": 1500 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
+        "interactive": ["error", { "maxNumericValue": 3000 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "speed-index": ["warn", { "maxNumericValue": 2000 }],
+        "bootup-time": ["warn", { "maxNumericValue": 1500 }],
+        "mainthread-work-breakdown": ["warn", { "maxNumericValue": 2000 }],
+        "total-byte-weight": ["warn", { "maxNumericValue": 870400 }],
+        "dom-size": ["warn", { "maxNumericValue": 1500 }],
+        "uses-optimized-images": "error",
+        "modern-image-formats": "warn",
+        "uses-text-compression": "error",
+        "uses-responsive-images": "warn",
+        "offscreen-images": "warn",
+        "unminified-css": "error",
+        "unminified-javascript": "error",
+        "unused-css-rules": "warn",
+        "unused-javascript": "warn",
+        "efficient-animated-content": "warn",
+        "duplicated-javascript": "error",
+        "legacy-javascript": "warn",
+        "uses-rel-preconnect": "warn",
+        "uses-rel-preload": "warn",
+        "font-display": "warn"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

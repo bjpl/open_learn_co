@@ -1,6 +1,9 @@
+import { RouteErrorBoundary } from '@/components/error-boundary'
+
 export default function TrendsPage() {
   return (
-    <div className="space-y-6">
+    <RouteErrorBoundary>
+      <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Trending Topics</h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -16,6 +19,7 @@ export default function TrendsPage() {
           Real-time trend detection, topic modeling, and viral content tracking will be available here.
         </p>
       </div>
-    </div>
+      </div>
+    </RouteErrorBoundary>
   )
 }

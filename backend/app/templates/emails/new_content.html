@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}New Content Available - OpenLearn{% endblock %}
+
+{% block header %}New Content Available{% endblock %}
+
+{% block content %}
+<div style="margin: 20px 0;">
+    <p style="font-size: 16px; color: #666; margin: 0 0 20px 0;">
+        We found new articles that match your interests!
+    </p>
+</div>
+
+{% if articles %}
+    {% for article in articles %}
+    <div class="article-card">
+        <h3>{{ article.title }}</h3>
+        <p>
+            <strong>Source:</strong> {{ article.source }}
+            {% if article.category %}
+            | <strong>Category:</strong> {{ article.category }}
+            {% endif %}
+        </p>
+        {% if article.difficulty %}
+        <span class="badge badge-difficulty">Level {{ article.difficulty|round|int }}</span>
+        {% endif %}
+        <p style="margin-top: 10px;">
+            <a href="{{ article.url }}" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                Read article →
+            </a>
+        </p>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ action_url }}" class="button">{{ action_text or "View All New Articles" }}</a>
+</div>
+
+<div style="margin: 30px 0; padding: 15px; background-color: #f8f8f8; border-radius: 6px;">
+    <p style="margin: 0; color: #666; font-size: 14px;">
+        💡 You're receiving this because you've shown interest in these topics.
+        You can adjust your preferences in your <a href="{{ settings_url }}/preferences" style="color: #667eea;">account settings</a>.
+    </p>
+</div>
+{% endblock %}

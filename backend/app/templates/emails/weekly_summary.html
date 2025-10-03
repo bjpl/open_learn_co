@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Your Weekly OpenLearn Summary{% endblock %}
+
+{% block header %}Your Weekly Summary{% endblock %}
+
+{% block content %}
+<h2 style="color: #333; margin-bottom: 10px;">Week of {{ week_start }} - {{ week_end }}</h2>
+
+<div class="stats-grid" style="margin: 30px 0;">
+    <div class="stat-card">
+        <p class="stat-number">{{ sessions_count }}</p>
+        <p class="stat-label">Learning Sessions</p>
+    </div>
+
+    <div class="stat-card">
+        <p class="stat-number">{{ total_time_minutes }}</p>
+        <p class="stat-label">Minutes Learned</p>
+    </div>
+
+    <div class="stat-card">
+        <p class="stat-number">{{ items_completed }}</p>
+        <p class="stat-label">Items Completed</p>
+    </div>
+
+    <div class="stat-card">
+        <p class="stat-number">{{ avg_score }}%</p>
+        <p class="stat-label">Average Score</p>
+    </div>
+</div>
+
+{% if new_vocab_count > 0 %}
+<div style="margin: 30px 0;">
+    <h3 style="color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+        📚 New Vocabulary Learned
+    </h3>
+    <div class="article-card">
+        <p style="font-size: 24px; font-weight: bold; color: #667eea; margin: 0;">
+            {{ new_vocab_count }} new words
+        </p>
+        <p style="color: #666; margin: 10px 0 0 0;">
+            Keep building your Spanish vocabulary!
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div style="margin: 30px 0; background-color: #f8f8f8; padding: 20px; border-radius: 6px;">
+    <h3 style="color: #333; margin: 0 0 15px 0;">🎯 Keep the Momentum Going!</h3>
+    <p style="color: #666; margin: 0 0 15px 0;">
+        You're making great progress with your Colombian Spanish learning. Here are some suggestions for next week:
+    </p>
+    <ul style="color: #666; margin: 0; padding-left: 20px;">
+        <li>Try reading articles from different Colombian regions</li>
+        <li>Practice with more challenging content</li>
+        <li>Review vocabulary regularly for better retention</li>
+        <li>Join community discussions (coming soon!)</li>
+    </ul>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ settings_url }}" class="button">Continue Learning</a>
+</div>
+
+<div style="margin: 30px 0; padding: 20px; background-color: #e8f4f8; border-left: 4px solid #667eea; border-radius: 4px;">
+    <p style="margin: 0; color: #333;">
+        📊 Want more detailed analytics? Check your <a href="{{ settings_url }}/analytics" style="color: #667eea;">learning dashboard</a>
+    </p>
+</div>
+{% endblock %}

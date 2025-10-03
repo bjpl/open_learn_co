@@ -1,6 +1,11 @@
 'use client'
 
-import { Database, Globe, Newspaper, Building2, Cloud, Shield, Activity, CheckCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Database, Globe, Newspaper, Building2, Cloud, Shield, Activity, CheckCircle, Filter } from 'lucide-react'
+import { RouteErrorBoundary } from '@/components/error-boundary'
+import { SearchFilter } from '@/components/filters/SearchFilter'
+import { SortControl } from '@/components/filters/SortControl'
+import { useFilters } from '@/lib/filters/filter-hooks'
 
 const dataSources = {
   'Government APIs': [
@@ -102,13 +107,26 @@ const dataSources = {
 }
 
 export default function SourcesPage() {
+  const { filters } = useFilters()
+
   return (
-    <div className="space-y-8">
+    <RouteErrorBoundary>
+      <div className="space-y-8">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Sources</h1>
         <p className="text-gray-600 dark:text-gray-400">
           Integrated data sources providing real-time Colombian information
         </p>
+      </div>
+
+      {/* Search and Sort Controls */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[250px]">
+            <SearchFilter />
+          </div>
+          <SortControl />
+        </div>
       </div>
 
       {/* Statistics */}
@@ -132,7 +150,8 @@ export default function SourcesPage() {
           </div>
         </div>
       ))}
-    </div>
+      </div>
+    </RouteErrorBoundary>
   )
 }
 
