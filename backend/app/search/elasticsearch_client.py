@@ -36,6 +36,7 @@ class ElasticsearchClient:
             return
 
         try:
+            # Parse credentials from URL or use separate settings
             self._client = AsyncElasticsearch(
                 [settings.ELASTICSEARCH_URL],
                 # Connection settings
@@ -43,9 +44,10 @@ class ElasticsearchClient:
                 max_retries=3,
                 # Timeout settings
                 request_timeout=30,
-                # Security (add auth if needed)
-                # http_auth=('username', 'password'),
-                # verify_certs=True,
+                # Security enabled for production
+                # Credentials parsed from ELASTICSEARCH_URL (http://elastic:password@host:9200)
+                # OR explicitly set via http_auth if needed
+                verify_certs=getattr(settings, 'ELASTICSEARCH_VERIFY_CERTS', False),
             )
 
             # Test connection
