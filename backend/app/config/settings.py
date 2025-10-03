@@ -169,7 +169,7 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         """Validate security-critical settings after initialization."""
         # Enforce SECRET_KEY in production
-        if is_production():
+        if self.ENVIRONMENT.lower() == "production":
             if not self.SECRET_KEY or self.SECRET_KEY == "INSECURE_DEFAULT_KEY_REPLACE_IN_PRODUCTION":
                 raise ValueError(
                     "SECRET_KEY must be set via environment variable in production. "
@@ -189,7 +189,11 @@ class Settings(BaseSettings):
                 )
 
     # CORS
-    CORS_ORIGINS: str | list[str] = "http://localhost:3000"
+    CORS_ORIGINS: str | list[str] = Field(
+        default="http://localhost:3000",
+        validation_alias="ALLOWED_ORIGINS",
+        description="CORS origins - accepts string or list"
+    )
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: list[str] = ["*"]
     CORS_ALLOW_HEADERS: list[str] = ["*"]

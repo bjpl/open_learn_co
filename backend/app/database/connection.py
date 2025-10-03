@@ -16,7 +16,8 @@ from app.database.models import Base
 logger = logging.getLogger(__name__)
 
 # Database URL configuration
-database_url = settings.get_database_url
+database_url_async = settings.DATABASE_URL
+database_url_sync = settings.DATABASE_URL_SYNC
 
 # Connection pool configuration from environment with production defaults
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20" if not settings.DEBUG else "5"))
@@ -61,16 +62,16 @@ def _on_close(dbapi_conn, connection_record):
 
 
 # Configure engines based on database type
-if database_url.startswith("sqlite"):
+if database_url_sync.startswith("sqlite"):
     # SQLite configuration (development only)
     engine = create_engine(
-        database_url,
+        database_url_sync,
         echo=settings.DEBUG,
         connect_args={"check_same_thread": False},
         poolclass=pool.StaticPool  # SQLite uses static pool
     )
     # For SQLite, use aiosqlite for async operations
-    async_database_url = database_url.replace("sqlite://", "sqlite+aiosqlite://")
+    async_database_url = database_url_async.replace("sqlite://", "sqlite+aiosqlite://")
     async_engine = create_async_engine(
         async_database_url,
         echo=settings.DEBUG,
@@ -80,7 +81,7 @@ if database_url.startswith("sqlite"):
 else:
     # PostgreSQL configuration with production-grade pooling
     engine = create_engine(
-        database_url,
+        database_url_sync,
         echo=settings.DEBUG,
         # QueuePool configuration for optimal connection management
         poolclass=pool.QueuePool,
@@ -104,7 +105,7 @@ else:
 
     # Async engine for PostgreSQL with same pooling configuration
     async_engine = create_async_engine(
-        database_url.replace("postgresql://", "postgresql+asyncpg://"),
+        database_url_async,
         echo=settings.DEBUG,
         poolclass=pool.AsyncAdaptedQueuePool,
         pool_size=DB_POOL_SIZE,
@@ -211,7 +212,7 @@ async def check_async_db_connection() -> bool:
 
 def get_pool_status() -> dict:
     """Get current connection pool status"""
-    if database_url.startswith("sqlite"):
+    if database_url_sync.startswith("sqlite"):
         return {
             "pool_type": "StaticPool",
             "message": "SQLite uses static pool - metrics not available"
@@ -235,7 +236,7 @@ def get_pool_status() -> dict:
 
 async def get_async_pool_status() -> dict:
     """Get current async connection pool status"""
-    if database_url.startswith("sqlite"):
+    if database_url_async.startswith("sqlite"):
         return {
             "pool_type": "StaticPool",
             "message": "SQLite uses static pool - metrics not available"

@@ -40,12 +40,12 @@ class BluRadioScraper(SmartScraper):
 
         # CSS selectors for Blu Radio's structure
         self.selectors = {
-            'article_links': '.article-link, .story-link, '.card-link', .noticia-link, h2 a, h3 a',
+            'article_links': '.article-link, .story-link, .card-link, .noticia-link, h2 a, h3 a',
             'title': 'h1.article-title, h1.story-title, h1.title, h1',
             'subtitle': '.article-subtitle, .story-subtitle, .bajada, .entradilla',
             'content': '.article-content, .story-content, .content-body, .noticia-texto',
             'author': '.article-author, .story-author, .author, .redactor',
-            'date': '.article-date, '.story-date', time, .fecha-publicacion',
+            'date': '.article-date, .story-date, time, .fecha-publicacion',
             'category': '.article-category, .story-category, .seccion',
             'tags': '.article-tags a, .story-tags a, .etiquetas a'
         }
