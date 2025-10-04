@@ -6,5 +6,6 @@
       "mcp__flow-nexus"
     ],
     "deny": []
-  }
+  },
+  "outputStyle": "learning-maximizer-2"
 }
