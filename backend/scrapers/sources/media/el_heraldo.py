@@ -4,7 +4,7 @@ Barranquilla's leading newspaper and Caribbean coast regional news source
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -45,7 +45,7 @@ class ElHeraldoScraper(SmartScraper):
             'content': '.article-content, .story-content, .content-body, .contenido-nota',
             'author': '.article-author, .story-author, .byline, .autor',
             'date': '.article-date, .story-date, time, .fecha',
-            'category': '.article-category, .story-category, '.seccion',
+            'category': '.article-category, .story-category, .seccion',
             'tags': '.article-tags a, .story-tags a, .etiquetas a'
         }
 

@@ -4,7 +4,7 @@ Cali's leading newspaper and Valle del Cauca regional news source
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging

@@ -4,7 +4,7 @@ Colombia's leading fact-checking organization
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -38,13 +38,13 @@ class ColombiaCheckScraper(SmartScraper):
 
         # CSS selectors for Colombia Check's structure
         self.selectors = {
-            'article_links': '.fact-check-link, .article-link, '.story-link', .card-link, h2 a, h3 a',
+            'article_links': '.fact-check-link, .article-link, .story-link, .card-link, h2 a, h3 a',
             'title': 'h1.fact-check-title, h1.article-title, h1.story-title, h1',
             'subtitle': '.fact-check-subtitle, .article-subtitle, .bajada, .dek',
             'content': '.fact-check-content, .article-content, .story-content, .content-body',
             'author': '.fact-check-author, .article-author, .byline, .autor',
             'date': '.fact-check-date, .article-date, time, .publish-date',
-            'category': '.fact-check-category, .article-category, '.section',
+            'category': '.fact-check-category, .article-category, .section',
             'tags': '.fact-check-tags a, .article-tags a, .tags a',
             'verdict': '.verdict, .calificacion, .resultado'
         }

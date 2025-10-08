@@ -4,7 +4,7 @@ Medellín's leading newspaper and Antioquia regional news source
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -39,11 +39,11 @@ class ElColombianoScraper(SmartScraper):
 
         # CSS selectors for El Colombiano's structure
         self.selectors = {
-            'article_links': '.article-link, .story-link, '.card-link', .headline-link, h2 a, h3 a',
+            'article_links': '.article-link, .story-link, .card-link, .headline-link, h2 a, h3 a',
             'title': 'h1.article-title, h1.story-title, h1.headline, h1',
             'subtitle': '.article-subtitle, .story-subtitle, .bajada, .entradilla',
             'content': '.article-content, .story-content, .content-body, .texto-noticia',
-            'author': '.article-author, .story-author, '.byline', .autor',
+            'author': '.article-author, .story-author, .byline, .autor',
             'date': '.article-date, .story-date, time, .fecha',
             'category': '.article-category, .story-category, .seccion',
             'tags': '.article-tags a, .story-tags a, .etiquetas a'

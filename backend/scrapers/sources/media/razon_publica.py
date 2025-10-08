@@ -4,7 +4,7 @@ Colombia's leading academic and policy analysis platform
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -38,10 +38,10 @@ class RazonPublicaScraper(SmartScraper):
 
         # CSS selectors for Razón Pública's structure
         self.selectors = {
-            'article_links': '.article-link, .content-link, '.item-link', .headline-link, h2 a, h3 a',
+            'article_links': '.article-link, .content-link, .item-link, .headline-link, h2 a, h3 a',
             'title': 'h1.article-title, h1.content-title, h1.item-title, h1',
             'subtitle': '.article-subtitle, .content-subtitle, .bajada, .dek',
-            'content': '.article-content, .content-body, '.item-content', .article-text',
+            'content': '.article-content, .content-body, .item-content, .article-text',
             'author': '.article-author, .content-author, .byline, .autor',
             'date': '.article-date, .content-date, time, .publish-date',
             'category': '.article-category, .content-category, .section',

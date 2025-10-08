@@ -4,7 +4,7 @@ Cartagena's leading newspaper and Caribbean coast regional news source
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -41,7 +41,7 @@ class ElUniversalScraper(SmartScraper):
         self.selectors = {
             'article_links': '.article-link, .story-link, .card-link, .news-link, h2 a, h3 a',
             'title': 'h1.article-title, h1.story-title, h1.news-title, h1',
-            'subtitle': '.article-subtitle, .story-subtitle, '.bajada', .entradilla',
+            'subtitle': '.article-subtitle, .story-subtitle, .bajada, .entradilla',
             'content': '.article-content, .story-content, .content-body, .news-content',
             'author': '.article-author, .story-author, .byline, .autor',
             'date': '.article-date, .story-date, time, .fecha',

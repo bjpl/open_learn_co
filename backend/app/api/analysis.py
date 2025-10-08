@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from ..database.database import get_db
+from ..database.connection import get_db
 from ..database.models import ScrapedContent, ContentAnalysis
 from nlp.pipeline import NLPPipeline
 from nlp.sentiment_analyzer import SentimentAnalyzer

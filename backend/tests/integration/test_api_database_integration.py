@@ -14,7 +14,7 @@ from backend.app.database.models import Base, ScrapedContent, ContentAnalysis, U
 from backend.app.database.vocabulary_models import (
     VocabularyLemma, VocabularyTranslation, VocabularyAcquisition
 )
-from backend.app.database.database import get_db
+from backend.app.database.connection import get_db
 
 
 # Test database setup

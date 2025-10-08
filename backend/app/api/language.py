@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 
-from ..database.database import get_db
+from ..database.connection import get_db
 from ..database.vocabulary_models import VocabularyLemma
 from ..database.models import User, UserVocabulary, LearningSession
 from backend.services.vocabulary_service import VocabularyService

@@ -4,7 +4,7 @@ Colombia's leading political analysis and investigative journalism platform
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -38,11 +38,11 @@ class LaSillaVaciaScraper(SmartScraper):
 
         # CSS selectors for La Silla Vacía's structure
         self.selectors = {
-            'article_links': '.article-link, .story-link, '.content-link', .headline-link, h2 a, h3 a',
+            'article_links': '.article-link, .story-link, .content-link, .headline-link, h2 a, h3 a',
             'title': 'h1.article-title, h1.story-title, h1.content-title, h1',
             'subtitle': '.article-subtitle, .story-subtitle, .bajada, .dek',
-            'content': '.article-content, .story-content, .content-body, '.article-text',
-            'author': '.article-author, .story-author, '.byline', .autor',
+            'content': '.article-content, .story-content, .content-body, .article-text',
+            'author': '.article-author, .story-author, .byline, .autor',
             'date': '.article-date, .story-date, time, .publish-date',
             'category': '.article-category, .story-category, .section',
             'tags': '.article-tags a, .story-tags a, .tags a'

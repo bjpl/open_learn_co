@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import asyncio
 
-from ..database.database import get_db
+from ..database.connection import get_db
 from ..database.models import ScrapedContent, ContentAnalysis
 from nlp.batch_processor import BatchProcessor, BatchConfig, JobPriority
 from nlp.pipeline import ColombianNLPPipeline

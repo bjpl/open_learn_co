@@ -4,7 +4,7 @@ Colombia's leading financial and business news source (El Tiempo Group)
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging

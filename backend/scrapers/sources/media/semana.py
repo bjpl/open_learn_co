@@ -4,7 +4,7 @@ Colombia's leading political and current affairs magazine
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging

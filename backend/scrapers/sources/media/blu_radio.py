@@ -4,7 +4,7 @@ Colombia's leading radio news network
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import logging
