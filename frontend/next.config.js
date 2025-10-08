@@ -22,7 +22,7 @@ const nextConfig = {
 
   // Experimental features for better performance
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // Disabled - requires critters package
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dialog',
@@ -100,8 +100,8 @@ const nextConfig = {
       },
     }
 
-    // Tree shaking optimization
-    config.optimization.usedExports = true
+    // Tree shaking optimization (disabled usedExports due to conflict with cacheUnaffected)
+    // config.optimization.usedExports = true
     config.optimization.sideEffects = true
 
     return config
