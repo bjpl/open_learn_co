@@ -1,6 +1,6 @@
 """Export API endpoints for data export functionality"""
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response, Depends
 from fastapi.responses import FileResponse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
@@ -12,6 +12,8 @@ from app.services.export_service import (
     ExportStatus
 )
 from app.utils.export import ExportLimits
+from app.core.security import get_current_active_user
+from app.database.models import User
 
 
 router = APIRouter()
@@ -48,7 +50,10 @@ class ExportStatusResponse(BaseModel):
 
 
 @router.post("/export/articles", response_model=ExportResponse)
-async def export_articles(request: ExportRequest):
+async def export_articles(
+    request: ExportRequest,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Export articles in specified format
 
@@ -80,7 +85,7 @@ async def export_articles(request: ExportRequest):
         job_id = await export_service.export_articles(
             articles=articles,
             format=request.format,
-            user_id=None,  # TODO: Get from auth context
+            user_id=current_user.id,  # Get user_id from authenticated user
             filters=request.filters
         )
 
@@ -104,7 +109,10 @@ async def export_articles(request: ExportRequest):
 
 
 @router.post("/export/vocabulary", response_model=ExportResponse)
-async def export_vocabulary(request: ExportRequest):
+async def export_vocabulary(
+    request: ExportRequest,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Export vocabulary in specified format
 
@@ -135,7 +143,7 @@ async def export_vocabulary(request: ExportRequest):
         job_id = await export_service.export_vocabulary(
             vocabulary=vocabulary,
             format=request.format,
-            user_id=None,
+            user_id=current_user.id,  # Get user_id from authenticated user
             filters=request.filters
         )
 
@@ -158,7 +166,10 @@ async def export_vocabulary(request: ExportRequest):
 
 
 @router.post("/export/analysis", response_model=ExportResponse)
-async def export_analysis(request: ExportRequest):
+async def export_analysis(
+    request: ExportRequest,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Export analysis results in specified format
 
@@ -189,7 +200,7 @@ async def export_analysis(request: ExportRequest):
         job_id = await export_service.export_analysis(
             analysis_results=analysis_results,
             format=request.format,
-            user_id=None,
+            user_id=current_user.id,  # Get user_id from authenticated user
             filters=request.filters
         )
 
@@ -214,7 +225,8 @@ async def export_analysis(request: ExportRequest):
 @router.post("/export/custom", response_model=ExportResponse)
 async def export_custom(
     request: ExportRequest,
-    data: List[Dict[str, Any]]
+    data: List[Dict[str, Any]],
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Export custom data in specified format
@@ -247,7 +259,7 @@ async def export_custom(
             data=data,
             format=request.format,
             filename="custom_export",
-            user_id=None,
+            user_id=current_user.id,  # Get user_id from authenticated user
             metadata={"type": "custom"}
         )
 

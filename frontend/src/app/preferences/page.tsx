@@ -15,6 +15,7 @@ import { LanguagePreferences } from '@/components/preferences/LanguagePreference
 import { PrivacyPreferences } from '@/components/preferences/PrivacyPreferences'
 import { DataManagement } from '@/components/preferences/DataManagement'
 import { RouteErrorBoundary } from '@/components/error-boundary'
+import { useUserId, useIsAuthenticated, useCurrentUser } from '@/hooks/useAuth'
 
 type Tab = 'profile' | 'notifications' | 'display' | 'learning' | 'privacy' | 'data'
 
@@ -261,8 +262,31 @@ function PreferencesContent() {
 }
 
 export default function PreferencesPage() {
-  // TODO: Get actual user ID from auth context
-  const userId = 'demo-user'
+  const userId = useUserId()
+  const isAuthenticated = useIsAuthenticated()
+  const currentUser = useCurrentUser()
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated || !userId) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Authentication Required
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Please log in to access your preferences.
+          </p>
+          <a
+            href="/login"
+            className="inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-yellow-600 hover:bg-yellow-700"
+          >
+            Go to Login
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <RouteErrorBoundary>

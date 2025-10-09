@@ -423,13 +423,26 @@ async def request_password_reset(
         expires_delta=timedelta(hours=1)
     )
 
-    # TODO: In production, send email with reset link
-    # For development, return the token
-    return {
-        "message": "Password reset token generated",
-        "reset_token": reset_token,
-        "expires_in": 3600
-    }
+    # Send password reset email
+    from ..services.email_service import send_password_reset_email
+
+    try:
+        email_sent = await send_password_reset_email(
+            to_email=user.email,
+            reset_token=reset_token,
+            user_name=user.full_name
+        )
+
+        if email_sent:
+            return {"message": "If the email exists, a reset link has been sent"}
+        else:
+            # Email failed but don't reveal this to user for security
+            return {"message": "If the email exists, a reset link has been sent"}
+
+    except Exception as e:
+        # Log error but don't reveal to user
+        print(f"Error sending password reset email: {e}")
+        return {"message": "If the email exists, a reset link has been sent"}
 
 
 @router.post("/password-update")
