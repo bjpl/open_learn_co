@@ -10,13 +10,16 @@ import { Download, Trash2, AlertTriangle } from 'lucide-react'
 import { usePreferences } from '@/lib/preferences/use-preferences'
 import { PreferenceCard } from '@/components/ui/PreferenceCard'
 import { exportUserData, deleteUserAccount } from '@/lib/preferences/preferences-api'
+import { useAuth } from '@/hooks/useAuth'
 
 export function DataManagement() {
   const { preferences, resetPreferences } = usePreferences()
+  const { logout } = useAuth()
   const [isExporting, setIsExporting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isClearingProgress, setIsClearingProgress] = useState(false)
 
   if (!preferences) return null
 
@@ -41,12 +44,32 @@ export function DataManagement() {
   }
 
   const handleClearProgress = async () => {
-    if (!confirm('Are you sure you want to clear your vocabulary progress? This cannot be undone.')) {
+    if (!confirm('Are you sure you want to clear ALL your learning progress? This includes vocabulary, reading history, and sessions. This cannot be undone.')) {
       return
     }
 
-    // TODO: Implement clear progress API call
-    alert('Clear progress functionality will be implemented in the backend.')
+    setIsClearingProgress(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch('/api/users/me/progress', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to clear progress')
+      }
+
+      const result = await response.json()
+      alert(`Progress cleared successfully!\n\nDeleted:\n- ${result.deleted_counts.vocabulary_items} vocabulary items\n- ${result.deleted_counts.content_progress} reading progress records\n- ${result.deleted_counts.learning_sessions} learning sessions`)
+    } catch (error) {
+      console.error('Failed to clear progress:', error)
+      alert('Failed to clear progress. Please try again.')
+    } finally {
+      setIsClearingProgress(false)
+    }
   }
 
   const handleResetPreferences = async () => {
@@ -71,9 +94,23 @@ export function DataManagement() {
 
     setIsDeleting(true)
     try {
-      await deleteUserAccount(preferences.userId)
-      alert('Your account has been deleted. You will be logged out.')
-      // TODO: Trigger logout and redirect
+      const token = localStorage.getItem('access_token')
+      const response = await fetch('/api/users/me/account', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete account')
+      }
+
+      // Account deleted successfully - logout and redirect
+      alert('Your account has been permanently deleted. You will now be logged out.')
+
+      // Clear authentication and redirect
+      await logout()
       window.location.href = '/'
     } catch (error) {
       console.error('Failed to delete account:', error)
@@ -124,10 +161,11 @@ export function DataManagement() {
         <div className="space-y-3">
           <button
             onClick={handleClearProgress}
-            className="inline-flex items-center px-4 py-2 border border-orange-300 dark:border-orange-600 rounded-md shadow-sm text-sm font-medium text-orange-700 dark:text-orange-300 bg-white dark:bg-gray-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            disabled={isClearingProgress}
+            className="inline-flex items-center px-4 py-2 border border-orange-300 dark:border-orange-600 rounded-md shadow-sm text-sm font-medium text-orange-700 dark:text-orange-300 bg-white dark:bg-gray-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Clear Vocabulary Progress
+            {isClearingProgress ? 'Clearing...' : 'Clear All Learning Progress'}
           </button>
 
           <button

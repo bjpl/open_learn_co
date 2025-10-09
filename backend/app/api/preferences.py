@@ -3,14 +3,24 @@ User Preferences API
 OpenLearn Colombia - Phase 3
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Literal
 from datetime import datetime
+from sqlalchemy.orm import Session
+from sqlalchemy import delete
 import json
 import csv
 import io
+import logging
+
+from app.core.security import get_current_active_user
+from app.database.connection import get_db
+from app.database.models import User, UserVocabulary, UserContentProgress, LearningSession
+from app.database.notification_models import Notification, NotificationPreference, EmailLog
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -265,19 +275,130 @@ async def export_user_data(
         )
 
 
-@router.delete("/api/preferences/account")
-async def delete_user_account(user_id: str = Query(..., description="User ID")):
+@router.delete("/api/users/me/account")
+async def delete_user_account(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
     """
-    Delete user account (GDPR compliance)
+    Delete user account (GDPR Article 17 - Right to be Forgotten)
 
-    Permanently removes all user data.
+    Permanently removes all user data in compliance with GDPR:
+    - User profile and authentication data
+    - Learning progress (vocabulary, content, sessions)
+    - Notifications and preferences
+    - Email logs and communication history
+
+    This operation is IRREVERSIBLE.
     """
-    if user_id in preferences_db:
-        del preferences_db[user_id]
+    user_id = current_user.id
 
-    # TODO: Delete from other systems (vocabulary, progress, etc.)
+    try:
+        logger.info(f"Starting account deletion for user {user_id}")
 
-    return {"message": "Account deleted successfully"}
+        # Delete in order: dependent tables first, then user table
+
+        # 1. Delete email logs
+        db.execute(delete(EmailLog).where(EmailLog.user_id == user_id))
+        logger.debug(f"Deleted email logs for user {user_id}")
+
+        # 2. Delete notifications
+        db.execute(delete(Notification).where(Notification.user_id == user_id))
+        logger.debug(f"Deleted notifications for user {user_id}")
+
+        # 3. Delete notification preferences
+        db.execute(delete(NotificationPreference).where(NotificationPreference.user_id == user_id))
+        logger.debug(f"Deleted notification preferences for user {user_id}")
+
+        # 4. Delete learning sessions
+        db.execute(delete(LearningSession).where(LearningSession.user_id == user_id))
+        logger.debug(f"Deleted learning sessions for user {user_id}")
+
+        # 5. Delete vocabulary progress
+        db.execute(delete(UserVocabulary).where(UserVocabulary.user_id == user_id))
+        logger.debug(f"Deleted vocabulary progress for user {user_id}")
+
+        # 6. Delete content progress
+        db.execute(delete(UserContentProgress).where(UserContentProgress.user_id == user_id))
+        logger.debug(f"Deleted content progress for user {user_id}")
+
+        # 7. Delete user account (main table)
+        db.execute(delete(User).where(User.id == user_id))
+        logger.debug(f"Deleted user record for user {user_id}")
+
+        # Commit all deletions
+        db.commit()
+
+        logger.info(f"Account deletion complete for user {user_id}")
+
+        return {
+            "message": "Account deleted successfully",
+            "deleted_at": datetime.utcnow().isoformat(),
+            "user_id": user_id
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete account for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Account deletion failed. Please contact support."
+        )
+
+
+@router.delete("/api/users/me/progress")
+async def clear_user_progress(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Clear user's learning progress.
+
+    Removes:
+    - Vocabulary progress (resets all learned words)
+    - Content progress (reading history)
+    - Learning sessions (activity history)
+
+    Does NOT delete:
+    - User account
+    - Preferences and settings
+    - Notifications
+
+    This operation is IRREVERSIBLE.
+    """
+    user_id = current_user.id
+
+    try:
+        logger.info(f"Clearing progress for user {user_id}")
+
+        # Delete learning data
+        vocab_result = db.execute(delete(UserVocabulary).where(UserVocabulary.user_id == user_id))
+        content_result = db.execute(delete(UserContentProgress).where(UserContentProgress.user_id == user_id))
+        session_result = db.execute(delete(LearningSession).where(LearningSession.user_id == user_id))
+
+        db.commit()
+
+        deleted_counts = {
+            "vocabulary_items": vocab_result.rowcount,
+            "content_progress": content_result.rowcount,
+            "learning_sessions": session_result.rowcount
+        }
+
+        logger.info(f"Progress cleared for user {user_id}: {deleted_counts}")
+
+        return {
+            "message": "Learning progress cleared successfully",
+            "cleared_at": datetime.utcnow().isoformat(),
+            "deleted_counts": deleted_counts
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to clear progress for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to clear progress. Please try again."
+        )
 
 
 @router.get("/api/preferences/health")
