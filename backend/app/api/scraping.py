@@ -30,28 +30,64 @@ SCRAPER_REGISTRY = {
 @router.get("/sources")
 async def list_sources(
     category: Optional[str] = None,
-    priority: Optional[str] = None
+    priority: Optional[str] = None,
+    format: Optional[str] = None
 ) -> Dict[str, Any]:
-    """List all configured scraping sources"""
+    """
+    List all configured scraping sources.
 
+    Query Parameters:
+    - category: Filter by category (nacional, negocio, regional, etc.)
+    - priority: Filter by priority (high, medium, low)
+    - format: Return format ('ui' for frontend components, 'full' for all details)
+
+    Returns:
+    - List of sources with metadata
+    - For format='ui': Simplified list for MultiSelect components
+    - For format='full': Complete source configuration
+    """
+
+    # Get sources based on filters
     if priority:
-        sources = get_sources_by_priority(priority)
+        sources_list = get_sources_by_priority(priority)
+    elif category and category in STRATEGIC_SOURCES:
+        sources_list = STRATEGIC_SOURCES[category]
+    else:
+        # Flatten all sources from all categories
+        sources_list = []
+        for cat_sources in STRATEGIC_SOURCES.values():
+            sources_list.extend(cat_sources)
+
+    # Format for UI components (frontend multi-select)
+    if format == 'ui':
+        sources_formatted = []
+        seen = set()  # Avoid duplicates
+
+        for source in sources_list:
+            name = source.get('name', '')
+            if name and name not in seen:
+                sources_formatted.append({
+                    'id': name,
+                    'name': name,
+                    'value': name,  # For MultiSelect compatibility
+                    'label': name,  # For MultiSelect compatibility
+                    'active': source.get('status') != 'disabled',
+                    'scraper_available': name in SCRAPER_REGISTRY
+                })
+                seen.add(name)
+
         return {
-            "total": len(sources),
-            "priority": priority,
-            "sources": sources
+            "sources": sources_formatted,
+            "total": len(sources_formatted)
         }
 
-    if category and category in STRATEGIC_SOURCES:
-        return {
-            "category": category,
-            "sources": STRATEGIC_SOURCES[category]
-        }
-
+    # Full format (all details)
     return {
         "total_categories": len(STRATEGIC_SOURCES),
         "categories": list(STRATEGIC_SOURCES.keys()),
-        "sources": STRATEGIC_SOURCES
+        "sources": STRATEGIC_SOURCES if not (priority or category) else sources_list,
+        "total_sources": len(sources_list),
+        "scrapers_implemented": list(SCRAPER_REGISTRY.keys())
     }
 
 

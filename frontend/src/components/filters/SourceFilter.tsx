@@ -1,37 +1,88 @@
 /**
  * SourceFilter Component
- * Multi-select filter for article sources
+ * Multi-select filter for article sources with dynamic loading from API
  */
 
 'use client';
 
 import { useFilters } from '@/lib/filters/filter-hooks';
-import { MultiSelect } from '@/components/ui/MultiSelect';
-
-// TODO: Fetch from API
-const SOURCE_OPTIONS = [
-  { value: 'eltiempo', label: 'El Tiempo' },
-  { value: 'semana', label: 'Semana' },
-  { value: 'elespectador', label: 'El Espectador' },
-  { value: 'portafolio', label: 'Portafolio' },
-  { value: 'larepublica', label: 'La República' },
-  { value: 'elheraldo', label: 'El Heraldo' },
-  { value: 'elpais', label: 'El País' },
-  { value: 'elcolombiano', label: 'El Colombiano' },
-  { value: 'caracol', label: 'Caracol Radio' },
-  { value: 'rcn', label: 'RCN Radio' },
-];
+import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
+import { useState, useEffect } from 'react';
 
 export function SourceFilter() {
   const { filters, updateFilters } = useFilters();
+  const [sources, setSources] = useState<MultiSelectOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch sources from API on mount
+  useEffect(() => {
+    const fetchSources = async () => {
+      try {
+        const response = await fetch('/api/v1/sources?format=ui');
+        if (response.ok) {
+          const data = await response.json();
+
+          // API already returns proper format with value, label, disabled
+          const sourceOptions: MultiSelectOption[] = data.sources.map((source: any) => ({
+            value: source.value || source.name,
+            label: source.label || source.name,
+            disabled: !source.active || !source.scraper_available
+          }));
+
+          setSources(sourceOptions);
+        } else {
+          // Fallback to hardcoded list if API fails
+          setSources(getDefaultSources());
+        }
+      } catch (error) {
+        console.error('Failed to fetch sources:', error);
+        // Fallback to hardcoded list
+        setSources(getDefaultSources());
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSources();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse">
+        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+      </div>
+    );
+  }
 
   return (
     <MultiSelect
-      options={SOURCE_OPTIONS}
-      selected={filters.sources || []}
+      options={sources}
+      value={filters.sources || []}
       onChange={(sources) => updateFilters({ sources })}
       placeholder="All sources"
-      searchPlaceholder="Search sources..."
+      enableSearch={true}
+      enableSelectAll={true}
     />
   );
+}
+
+// Fallback sources if API is unavailable
+function getDefaultSources(): MultiSelectOption[] {
+  return [
+    { value: 'El Tiempo', label: 'El Tiempo' },
+    { value: 'El Espectador', label: 'El Espectador' },
+    { value: 'Semana', label: 'Semana' },
+    { value: 'La República', label: 'La República' },
+    { value: 'Portafolio', label: 'Portafolio' },
+    { value: 'Dinero', label: 'Dinero' },
+    { value: 'El Colombiano', label: 'El Colombiano' },
+    { value: 'El País', label: 'El País' },
+    { value: 'El Heraldo', label: 'El Heraldo' },
+    { value: 'El Universal', label: 'El Universal' },
+    { value: 'Pulzo', label: 'Pulzo' },
+    { value: 'La Silla Vacía', label: 'La Silla Vacía' },
+    { value: 'Razón Pública', label: 'Razón Pública' },
+    { value: 'La FM', label: 'La FM' },
+    { value: 'Blu Radio', label: 'Blu Radio' },
+  ];
 }

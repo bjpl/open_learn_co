@@ -12,6 +12,7 @@ import { PreferenceCard } from '@/components/ui/PreferenceCard'
 import { RadioGroup, RadioOption } from '@/components/ui/RadioGroup'
 import { Select, SelectOption } from '@/components/ui/Select'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect'
 import type {
   CEFRLevel,
   ReviewFrequency,
@@ -58,6 +59,40 @@ const CONTENT_LENGTH_OPTIONS: RadioOption[] = [
   { value: 'medium', label: 'Medium (5-15 min)' },
   { value: 'long', label: 'Long (15+ min)' },
   { value: 'any', label: 'Any length' },
+]
+
+const NEWS_SOURCE_OPTIONS: MultiSelectOption[] = [
+  { value: 'El Tiempo', label: 'El Tiempo' },
+  { value: 'El Espectador', label: 'El Espectador' },
+  { value: 'Semana', label: 'Semana' },
+  { value: 'La República', label: 'La República' },
+  { value: 'Portafolio', label: 'Portafolio' },
+  { value: 'Dinero', label: 'Dinero' },
+  { value: 'El Colombiano', label: 'El Colombiano' },
+  { value: 'El País', label: 'El País' },
+  { value: 'El Heraldo', label: 'El Heraldo' },
+  { value: 'El Universal', label: 'El Universal' },
+  { value: 'Pulzo', label: 'Pulzo' },
+  { value: 'La Silla Vacía', label: 'La Silla Vacía' },
+  { value: 'Razón Pública', label: 'Razón Pública' },
+  { value: 'La FM', label: 'La FM' },
+  { value: 'Blu Radio', label: 'Blu Radio' },
+]
+
+const CATEGORY_OPTIONS: MultiSelectOption[] = [
+  { value: 'Politics', label: 'Politics' },
+  { value: 'Economy', label: 'Economy' },
+  { value: 'Business', label: 'Business' },
+  { value: 'Technology', label: 'Technology' },
+  { value: 'Culture', label: 'Culture' },
+  { value: 'Sports', label: 'Sports' },
+  { value: 'Environment', label: 'Environment' },
+  { value: 'Education', label: 'Education' },
+  { value: 'Health', label: 'Health' },
+  { value: 'Security', label: 'Security' },
+  { value: 'International', label: 'International' },
+  { value: 'Regional', label: 'Regional' },
+  { value: 'Opinion', label: 'Opinion' },
 ]
 
 export function LanguagePreferences() {
@@ -188,24 +223,25 @@ export function LanguagePreferences() {
           </div>
         </div>
 
-        {/* TODO: Add multi-select for sources and categories */}
-        <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-            Preferred News Sources
-          </label>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Multi-select component coming soon
-          </p>
-        </div>
+        <MultiSelect
+          label="Preferred News Sources"
+          options={NEWS_SOURCE_OPTIONS}
+          value={learning.preferredSources}
+          onChange={(sources) => updateLearning({ preferredSources: sources })}
+          placeholder="Select news sources..."
+          enableSearch={true}
+          enableSelectAll={true}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-            Preferred Categories
-          </label>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Multi-select component coming soon
-          </p>
-        </div>
+        <MultiSelect
+          label="Preferred Categories"
+          options={CATEGORY_OPTIONS}
+          value={learning.preferredCategories}
+          onChange={(categories) => updateLearning({ preferredCategories: categories })}
+          placeholder="Select categories..."
+          enableSearch={true}
+          enableSelectAll={true}
+        />
       </PreferenceCard>
     </div>
   )
