@@ -254,8 +254,10 @@ class EmailService:
         Returns:
             True if email sent successfully
         """
-        # TODO: Replace with actual frontend URL from settings
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        # Get frontend URL from settings (fallback to localhost for development)
+        from ..config.settings import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
 
         greeting = f"Hello {user_name}" if user_name else "Hello"
 

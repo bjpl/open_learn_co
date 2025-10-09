@@ -57,8 +57,8 @@ class Notification(Base):
     action_url = Column(String(500))  # Link to related content
     action_label = Column(String(50))  # Button text (e.g., "Read Now", "Review")
 
-    # Metadata
-    metadata = Column(JSON)  # Additional data (content_id, vocabulary_id, etc.)
+    # Additional data (renamed from 'metadata' to avoid SQLAlchemy reserved name)
+    extra_data = Column(JSON)  # Additional data (content_id, vocabulary_id, etc.)
 
     # Status
     read = Column(Boolean, default=False, nullable=False)
@@ -101,7 +101,7 @@ class Notification(Base):
             "message": self.message,
             "action_url": self.action_url,
             "action_label": self.action_label,
-            "metadata": self.metadata,
+            "metadata": self.extra_data,  # Return as 'metadata' in API for backwards compatibility
             "read": self.read,
             "read_at": self.read_at.isoformat() if self.read_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -194,8 +194,8 @@ class EmailLog(Base):
     clicked = Column(Boolean, default=False)
     clicked_at = Column(DateTime)
 
-    # Metadata
-    metadata = Column(JSON)  # Template variables, content IDs, etc.
+    # Additional data (renamed from 'metadata' to avoid SQLAlchemy reserved name)
+    extra_data = Column(JSON)  # Template variables, content IDs, etc.
 
     # Timestamps
     created_at = Column(DateTime, default=func.now())

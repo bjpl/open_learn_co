@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # API Configuration
     API_V1_PREFIX: str = "/api/v1"
     ALLOWED_HOSTS: list[str] = ["*"]
+    FRONTEND_URL: str = "http://localhost:3000"  # Frontend base URL for email links
 
     # ========================================================================
     # Database Configuration

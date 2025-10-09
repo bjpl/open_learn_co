@@ -64,7 +64,7 @@ class NotificationService:
             message=message,
             action_url=action_url,
             action_label=action_label,
-            metadata=metadata,
+            extra_data=metadata,  # Renamed from metadata to extra_data
             expires_at=expires_at
         )
 

@@ -13,7 +13,7 @@ All deletion operations are:
 - Reported with detailed counts
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from sqlalchemy import delete, select, func
 from sqlalchemy.orm import Session
