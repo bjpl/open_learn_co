@@ -49,12 +49,20 @@ async def send_daily_digests():
 
             for user in users:
                 try:
-                    # TODO: Check user timezone and send at their configured time
-                    # For now, send to all at once
-                    if await notifier.send_daily_digest(user):
-                        success_count += 1
-                    else:
-                        fail_count += 1
+                    from app.utils.timezone_utils import get_user_current_time
+
+                    # Check if it's the right time in user's timezone
+                    # Send digest at 8am user's local time
+                    user_now = get_user_current_time(user.timezone)
+
+                    # Only send if it's between 8:00am and 8:59am in user's timezone
+                    # (job runs hourly, so each user gets it once near their 8am)
+                    if 8 <= user_now.hour < 9:
+                        if await notifier.send_daily_digest(user):
+                            success_count += 1
+                        else:
+                            fail_count += 1
+                    # else: Skip this user this hour, they'll be checked next hour
 
                 except Exception as e:
                     logger.error(f"Failed to send daily digest to user {user.id}: {e}")
@@ -227,11 +235,17 @@ async def send_streak_reminders():
 
             for user in users:
                 try:
-                    # Calculate current streak (simplified)
-                    # TODO: Implement proper streak calculation
-                    streak = 0
-                    await triggers.trigger_streak_reminder(user.id, streak)
-                    count += 1
+                    from app.utils.streak_calculator import get_current_streak, should_send_streak_reminder
+
+                    # Check if we should send reminder (timezone-aware)
+                    if await should_send_streak_reminder(db, user.id, user.timezone):
+                        # Calculate current streak
+                        streak = await get_current_streak(db, user.id, user.timezone)
+
+                        if streak > 0:  # Only remind users with active streaks
+                            await triggers.trigger_streak_reminder(user.id, streak)
+                            count += 1
+
                 except Exception as e:
                     logger.error(f"Failed to send streak reminder to user {user.id}: {e}")
 

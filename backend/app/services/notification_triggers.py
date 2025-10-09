@@ -50,9 +50,11 @@ class NotificationTriggers:
 
         # If no users specified, find users interested in this type of content
         if not matching_users:
-            # TODO: Implement user preference matching
-            # For now, skip auto-matching
-            return
+            matching_users = await self._find_interested_users(content)
+
+            if not matching_users:
+                logger.debug(f"No users interested in content {content_id}")
+                return
 
         # Get matching users
         users_query = select(User).where(User.id.in_(matching_users))
@@ -276,3 +278,71 @@ class NotificationTriggers:
                 priority=NotificationPriority.LOW,
                 expires_in_days=2
             )
+
+    # Helper Methods
+
+    async def _find_interested_users(self, content: ScrapedContent) -> List[int]:
+        """
+        Find users who should be notified about new content based on their preferences.
+
+        Matches users based on:
+        - Preferred sources (e.g., 'El Tiempo', 'Semana')
+        - Preferred categories (e.g., 'Politics', 'Economy')
+        - Preferred topics from interests JSON field
+        - Spanish level (content difficulty matching)
+
+        Args:
+            content: ScrapedContent object to match against
+
+        Returns:
+            List of user IDs who should be notified
+
+        Example:
+            >>> content = ScrapedContent(source='El Tiempo', category='Politics', ...)
+            >>> user_ids = await triggers._find_interested_users(content)
+            >>> # Returns users who have 'El Tiempo' in preferred_sources
+            >>> # OR 'Politics' in preferred_categories
+        """
+        matching_user_ids = []
+
+        # Get all active users with preferences
+        users_query = select(User).where(User.is_active == True)
+        result = await self.db.execute(users_query)
+        users = result.scalars().all()
+
+        for user in users:
+            should_notify = False
+
+            # Match by source preference
+            if user.preferred_sources and content.source in user.preferred_sources:
+                should_notify = True
+
+            # Match by category preference
+            if user.preferred_categories and content.category in user.preferred_categories:
+                should_notify = True
+
+            # Match by topics/interests
+            if user.interests and content.tags:
+                user_interests = set(user.interests if isinstance(user.interests, list) else [])
+                content_tags = set(content.tags if isinstance(content.tags, list) else [])
+
+                # If any tag matches any interest
+                if user_interests.intersection(content_tags):
+                    should_notify = True
+
+            # Match by difficulty level (content not too hard)
+            if user.spanish_level and content.difficulty_score:
+                # Map CEFR levels to numeric scores (A1=1, A2=2, B1=3, B2=4, C1=5, C2=6)
+                level_map = {'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6}
+                user_level = level_map.get(user.spanish_level, 3)  # Default B1
+
+                # Content should be within user's level +/- 1
+                # e.g., B1 user (3) gets content difficulty 2-4 (A2-B2)
+                if abs(content.difficulty_score - user_level) <= 1.5:
+                    should_notify = should_notify or True
+
+            if should_notify:
+                matching_user_ids.append(user.id)
+
+        logger.info(f"Content {content.id} matched {len(matching_user_ids)} interested users")
+        return matching_user_ids

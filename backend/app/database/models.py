@@ -171,9 +171,14 @@ class User(Base):
     learning_goals = Column(JSON)
     interests = Column(JSON)  # Topics of interest
 
+    # Localization
+    timezone = Column(String(100), default='America/Bogota')  # User's timezone (IANA format)
+    language = Column(String(10), default='es')  # Preferred UI language
+
     # Colombian context preferences
     preferred_regions = Column(JSON)  # Colombian regions of interest
     preferred_sources = Column(JSON)  # Preferred news sources
+    preferred_categories = Column(JSON)  # Preferred content categories
 
     # Authentication & Security
     refresh_token = Column(String(500))  # Current valid refresh token

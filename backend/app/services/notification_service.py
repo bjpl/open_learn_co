@@ -327,12 +327,24 @@ class NotificationService:
         return count < max_per_hour
 
     async def _check_quiet_hours(self, user_id: int) -> bool:
-        """Check if current time is within user's quiet hours"""
+        """Check if current time is within user's quiet hours (timezone-aware)"""
+        from app.utils.timezone_utils import is_in_quiet_hours
 
         prefs = await self.get_user_preferences(user_id)
         if not prefs or not prefs.quiet_hours_start or not prefs.quiet_hours_end:
             return False
 
-        # TODO: Implement timezone-aware quiet hours checking
-        # For now, return False (not in quiet hours)
-        return False
+        # Get user's timezone
+        user_query = select(User).where(User.id == user_id)
+        result = await self.db.execute(user_query)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return False
+
+        # Check if currently in quiet hours (timezone-aware)
+        return is_in_quiet_hours(
+            quiet_start=prefs.quiet_hours_start,
+            quiet_end=prefs.quiet_hours_end,
+            user_timezone=user.timezone
+        )
