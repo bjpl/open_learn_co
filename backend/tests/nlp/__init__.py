@@ -1,3 +1,0 @@
-"""
-NLP tests package
-"""
