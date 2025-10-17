@@ -123,7 +123,13 @@ class Settings(BaseSettings):
     # ========================================================================
 
     SCRAPER_USER_AGENT: str = "OpenLearn Bot 1.0"
+    USER_AGENTS: list[str] = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    ]
     SCRAPER_TIMEOUT: int = 30
+    REQUEST_TIMEOUT: int = 30  # For aiohttp requests
     SCRAPER_MAX_RETRIES: int = 3
     SCRAPER_RATE_LIMIT: int = 10  # requests per second
     SCRAPER_CONCURRENT_LIMIT: int = 5

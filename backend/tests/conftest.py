@@ -54,11 +54,25 @@ def mock_settings():
 def patch_settings(monkeypatch, mock_settings):
     """Automatically patch settings for all tests"""
     import sys
-    if 'app.config' not in sys.modules:
-        # Create a mock module
+
+    # Try to import the actual module first
+    try:
+        from app.config import settings
+        # Patch the existing settings
+        monkeypatch.setattr('app.config.settings', mock_settings)
+    except ImportError:
+        # Create a mock module if it doesn't exist
         from types import ModuleType
+
+        # Create app module if needed
+        if 'app' not in sys.modules:
+            app_module = ModuleType('app')
+            sys.modules['app'] = app_module
+
+        # Create app.config module
         config_module = ModuleType('config')
         config_module.settings = mock_settings
         sys.modules['app.config'] = config_module
-    else:
-        monkeypatch.setattr('app.config.settings', mock_settings)
+
+        # Also make it accessible as app.config
+        sys.modules['app'].config = config_module
