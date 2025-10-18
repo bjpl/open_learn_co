@@ -73,6 +73,7 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # Elasticsearch
+    ELASTICSEARCH_ENABLED: bool = True  # Enable/disable Elasticsearch features
     ELASTICSEARCH_HOST: str = "localhost"
     ELASTICSEARCH_PORT: int = 9200
     ELASTICSEARCH_INDEX_PREFIX: str = "openlearn"
@@ -113,6 +114,9 @@ class Settings(BaseSettings):
 
     # Health Checks
     HEALTH_CHECK_INTERVAL: int = 30  # seconds
+    DATABASE_HEALTH_TIMEOUT: float = 5.0  # seconds
+    REDIS_HEALTH_TIMEOUT: float = 3.0  # seconds
+    ELASTICSEARCH_HEALTH_TIMEOUT: float = 5.0  # seconds
 
     # Performance
     SLOW_REQUEST_THRESHOLD_MS: float = 1000.0

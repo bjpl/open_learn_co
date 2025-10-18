@@ -6,12 +6,13 @@
 'use client';
 
 import { useFilters } from '@/lib/filters/filter-hooks';
-import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { FilterOption } from '@/lib/filters/filter-types';
 import { useState, useEffect } from 'react';
 
 export function SourceFilter() {
   const { filters, updateFilters } = useFilters();
-  const [sources, setSources] = useState<MultiSelectOption[]>([]);
+  const [sources, setSources] = useState<FilterOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch sources from API on mount
@@ -23,7 +24,7 @@ export function SourceFilter() {
           const data = await response.json();
 
           // API already returns proper format with value, label, disabled
-          const sourceOptions: MultiSelectOption[] = data.sources.map((source: any) => ({
+          const sourceOptions: FilterOption[] = data.sources.map((source: any) => ({
             value: source.value || source.name,
             label: source.label || source.name,
             disabled: !source.active || !source.scraper_available
@@ -57,17 +58,15 @@ export function SourceFilter() {
   return (
     <MultiSelect
       options={sources}
-      value={filters.sources || []}
+      selected={filters.sources || []}
       onChange={(sources) => updateFilters({ sources })}
       placeholder="All sources"
-      enableSearch={true}
-      enableSelectAll={true}
     />
   );
 }
 
 // Fallback sources if API is unavailable
-function getDefaultSources(): MultiSelectOption[] {
+function getDefaultSources(): FilterOption[] {
   return [
     { value: 'El Tiempo', label: 'El Tiempo' },
     { value: 'El Espectador', label: 'El Espectador' },

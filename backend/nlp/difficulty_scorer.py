@@ -2,7 +2,7 @@
 Text difficulty scoring for Colombian Spanish educational content.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import re
 import statistics
 from dataclasses import dataclass

@@ -1,0 +1,31 @@
+# Testing dependencies for OpenLearn Colombia deployment validation
+
+# Load Testing
+locust==2.15.1
+gevent==23.9.1
+greenlet==3.0.0
+
+# HTTP Testing
+requests==2.31.0
+urllib3==2.0.7
+
+# Database Testing
+psycopg2-binary==2.9.9
+redis==5.0.1
+
+# Search Testing (optional)
+elasticsearch==8.11.0
+
+# Test Framework
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+pytest-timeout==2.2.0
+
+# Performance Monitoring
+psutil==5.9.6
+
+# Report Generation
+Jinja2==3.1.2
+matplotlib==3.8.2
+pandas==2.1.4

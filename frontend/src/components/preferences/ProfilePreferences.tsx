@@ -39,12 +39,25 @@ export function ProfilePreferences() {
   const { profile } = preferences
 
   const handleAvatarUpload = async (file: File) => {
-    // TODO: Implement actual upload to backend
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      updateProfile({ avatar: reader.result as string })
+    try {
+      // Import avatar API dynamically
+      const { uploadAvatar, validateAvatarFile } = await import('@/lib/api/avatar')
+
+      // Validate file before upload
+      validateAvatarFile(file, 5) // 5MB max
+
+      // Upload to backend
+      const response = await uploadAvatar(file)
+
+      // Update profile with new avatar URL
+      updateProfile({ avatar: response.avatar_url })
+
+      console.log('Avatar uploaded successfully:', response.metadata)
+    } catch (error) {
+      console.error('Avatar upload failed:', error)
+      // You may want to show a toast notification here
+      alert(error instanceof Error ? error.message : 'Avatar upload failed')
     }
-    reader.readAsDataURL(file)
   }
 
   const handleAvatarRemove = () => {

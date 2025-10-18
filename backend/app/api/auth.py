@@ -13,7 +13,7 @@ This module implements secure authentication with:
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -362,8 +362,8 @@ async def get_current_user_info(
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(
-    full_name: Optional[str] = Field(None, min_length=2, max_length=200),
-    username: Optional[str] = Field(None, min_length=3, max_length=100),
+    full_name: Optional[str] = Body(None, min_length=2, max_length=200),
+    username: Optional[str] = Body(None, min_length=3, max_length=100),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):

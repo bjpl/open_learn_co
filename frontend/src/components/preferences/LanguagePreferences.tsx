@@ -12,7 +12,8 @@ import { PreferenceCard } from '@/components/ui/PreferenceCard'
 import { RadioGroup, RadioOption } from '@/components/ui/RadioGroup'
 import { Select, SelectOption } from '@/components/ui/Select'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
-import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect'
+import { MultiSelect } from '@/components/ui/MultiSelect'
+import { FilterOption } from '@/lib/filters/filter-types'
 import type {
   CEFRLevel,
   ReviewFrequency,
@@ -61,7 +62,7 @@ const CONTENT_LENGTH_OPTIONS: RadioOption[] = [
   { value: 'any', label: 'Any length' },
 ]
 
-const NEWS_SOURCE_OPTIONS: MultiSelectOption[] = [
+const NEWS_SOURCE_OPTIONS: FilterOption[] = [
   { value: 'El Tiempo', label: 'El Tiempo' },
   { value: 'El Espectador', label: 'El Espectador' },
   { value: 'Semana', label: 'Semana' },
@@ -79,7 +80,7 @@ const NEWS_SOURCE_OPTIONS: MultiSelectOption[] = [
   { value: 'Blu Radio', label: 'Blu Radio' },
 ]
 
-const CATEGORY_OPTIONS: MultiSelectOption[] = [
+const CATEGORY_OPTIONS: FilterOption[] = [
   { value: 'Politics', label: 'Politics' },
   { value: 'Economy', label: 'Economy' },
   { value: 'Business', label: 'Business' },
@@ -224,23 +225,17 @@ export function LanguagePreferences() {
         </div>
 
         <MultiSelect
-          label="Preferred News Sources"
           options={NEWS_SOURCE_OPTIONS}
-          value={learning.preferredSources}
+          selected={learning.preferredSources}
           onChange={(sources) => updateLearning({ preferredSources: sources })}
           placeholder="Select news sources..."
-          enableSearch={true}
-          enableSelectAll={true}
         />
 
         <MultiSelect
-          label="Preferred Categories"
           options={CATEGORY_OPTIONS}
-          value={learning.preferredCategories}
+          selected={learning.preferredCategories}
           onChange={(categories) => updateLearning({ preferredCategories: categories })}
           placeholder="Select categories..."
-          enableSearch={true}
-          enableSelectAll={true}
         />
       </PreferenceCard>
     </div>

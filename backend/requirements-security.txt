@@ -1,0 +1,18 @@
+# Security Testing and Scanning Tools
+
+# Static Application Security Testing (SAST)
+bandit==1.7.5  # Python security linter
+semgrep==1.45.0  # Semantic code analysis
+
+# Dependency Vulnerability Scanning
+safety==2.3.5  # Known vulnerability database
+pip-audit==2.6.1  # Python package auditing
+
+# Optional Advanced Tools
+# trivy (install separately): Container and filesystem scanner
+# OWASP ZAP (install separately): Web application penetration testing
+
+# Security Test Dependencies
+pytest-security==0.1.0  # Security test helpers
+requests-mock==1.11.0  # Mock HTTP requests for testing
+hypothesis==6.92.1  # Property-based testing for edge cases

@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Database, Globe, Newspaper, Building2, Cloud, Shield, Activity, CheckCircle, Filter } from 'lucide-react'
+// Phase 1: useState not used
+// import { useState } from 'react'
+import { Database, Globe, Newspaper, Building2, Cloud, Shield, Activity, CheckCircle } from 'lucide-react'
+// Phase 1: Filter icon not used
 import { RouteErrorBoundary } from '@/components/error-boundary'
 import { SearchFilter } from '@/components/filters/SearchFilter'
 import { SortControl } from '@/components/filters/SortControl'
-import { useFilters } from '@/lib/filters/filter-hooks'
+// Phase 1: useFilters hook not used
+// import { useFilters } from '@/lib/filters/filter-hooks'
 
 const dataSources = {
   'Government APIs': [
@@ -107,7 +110,8 @@ const dataSources = {
 }
 
 export default function SourcesPage() {
-  const { filters } = useFilters()
+  // Phase 1: filters not used yet
+  // const { filters } = useFilters()
 
   return (
     <RouteErrorBoundary>

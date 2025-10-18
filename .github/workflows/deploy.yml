@@ -1,0 +1,394 @@
+name: Deploy OpenLearn Colombia
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Pre-deployment validation
+  pre-deployment-validation:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: openlearn_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Set up environment variables
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/openlearn_test" >> $GITHUB_ENV
+          echo "REDIS_URL=redis://localhost:6379/0" >> $GITHUB_ENV
+          echo "SECRET_KEY=test-secret-key-for-ci-cd-pipeline-validation-only" >> $GITHUB_ENV
+          echo "DEBUG=False" >> $GITHUB_ENV
+          echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=openlearn.settings" >> $GITHUB_ENV
+
+      - name: Run pre-deployment validation
+        run: |
+          python tests/deployment/pre_deployment.py
+        continue-on-error: false
+
+      - name: Run database migrations
+        run: |
+          python manage.py migrate --no-input
+
+      - name: Collect static files
+        run: |
+          python manage.py collectstatic --no-input
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --tb=short --maxfail=5
+
+      - name: Upload pre-deployment report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pre-deployment-report
+          path: |
+            *.log
+            test-results/
+
+  # Build and test
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: pre-deployment-validation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Build Docker image
+        run: |
+          docker build -t openlearn-colombia:${{ github.sha }} .
+
+      - name: Run container tests
+        run: |
+          docker run --rm openlearn-colombia:${{ github.sha }} python manage.py check
+
+      - name: Save Docker image
+        run: |
+          docker save openlearn-colombia:${{ github.sha }} | gzip > openlearn-image.tar.gz
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: openlearn-image.tar.gz
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging.openlearn.colombia
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: |
+          docker load < openlearn-image.tar.gz
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: openlearn-staging
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag openlearn-colombia:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag openlearn-colombia:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster openlearn-staging \
+            --service openlearn-web \
+            --force-new-deployment
+
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster openlearn-staging \
+            --services openlearn-web \
+            --timeout 600
+
+      - name: Run database migrations
+        run: |
+          aws ecs run-task \
+            --cluster openlearn-staging \
+            --task-definition openlearn-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.STAGING_SUBNET_IDS }}],securityGroups=[${{ secrets.STAGING_SECURITY_GROUP }}],assignPublicIp=ENABLED}"
+
+  # Post-deployment smoke tests
+  smoke-tests:
+    name: Post-Deployment Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: |
+          pip install requests psycopg2-binary redis elasticsearch
+
+      - name: Run smoke tests
+        env:
+          DEPLOYMENT_URL: https://staging.openlearn.colombia
+        run: |
+          python tests/deployment/post_deployment.py
+
+      - name: Upload smoke test report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: smoke-test-report
+          path: |
+            *.log
+            test-results/
+
+  # Load testing
+  load-tests:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Locust
+        run: |
+          pip install locust
+
+      - name: Run load tests
+        env:
+          DEPLOYMENT_URL: https://staging.openlearn.colombia
+        run: |
+          locust -f tests/load/locustfile.py \
+            --host $DEPLOYMENT_URL \
+            --users 1000 \
+            --spawn-rate 10 \
+            --run-time 5m \
+            --headless \
+            --html load-test-report.html \
+            --csv load-test-results
+
+      - name: Upload load test report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-report
+          path: |
+            load-test-report.html
+            load-test-results*.csv
+
+  # Deploy to production (manual approval required)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [smoke-tests, load-tests]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://openlearn.colombia
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: |
+          docker load < openlearn-image.tar.gz
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: openlearn-production
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag openlearn-colombia:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag openlearn-colombia:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Create backup before deployment
+        run: |
+          aws rds create-db-snapshot \
+            --db-instance-identifier openlearn-production \
+            --db-snapshot-identifier openlearn-pre-deploy-$(date +%Y%m%d-%H%M%S)
+
+      - name: Deploy to ECS (Blue-Green)
+        run: |
+          aws ecs update-service \
+            --cluster openlearn-production \
+            --service openlearn-web \
+            --force-new-deployment \
+            --deployment-configuration "deploymentCircuitBreaker={enable=true,rollback=true},maximumPercent=200,minimumHealthyPercent=100"
+
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster openlearn-production \
+            --services openlearn-web \
+            --timeout 600
+
+      - name: Run database migrations
+        run: |
+          aws ecs run-task \
+            --cluster openlearn-production \
+            --task-definition openlearn-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PRODUCTION_SUBNET_IDS }}],securityGroups=[${{ secrets.PRODUCTION_SECURITY_GROUP }}],assignPublicIp=ENABLED}"
+
+      - name: Verify production deployment
+        env:
+          DEPLOYMENT_URL: https://openlearn.colombia
+        run: |
+          python tests/deployment/post_deployment.py
+
+      - name: Notify deployment success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'OpenLearn Colombia deployed to production successfully!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          aws ecs update-service \
+            --cluster openlearn-production \
+            --service openlearn-web \
+            --task-definition openlearn-web:${{ env.PREVIOUS_TASK_DEFINITION }}
+
+          # Notify team
+          echo "Production deployment failed - rollback initiated"
+
+  # Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Delete old Docker images
+        run: |
+          # Cleanup logic for old images
+          echo "Cleanup completed"

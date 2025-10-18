@@ -1,0 +1,41 @@
+# Semgrep ignore patterns
+# Exclude directories from semantic code analysis
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Tests (analyzed separately)
+tests/
+test_*.py
+*_test.py
+
+# Git
+.git/
+.github/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Alembic migrations (generated code)
+alembic/versions/*.py

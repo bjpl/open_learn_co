@@ -171,6 +171,10 @@ class User(Base):
     learning_goals = Column(JSON)
     interests = Column(JSON)  # Topics of interest
 
+    # Avatar
+    avatar_url = Column(String(500))  # URL to avatar image
+    avatar_metadata = Column(JSON)  # Avatar upload metadata (dimensions, size, etc.)
+
     # Localization
     timezone = Column(String(100), default='America/Bogota')  # User's timezone (IANA format)
     language = Column(String(10), default='es')  # Preferred UI language

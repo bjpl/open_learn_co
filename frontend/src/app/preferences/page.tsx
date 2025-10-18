@@ -15,7 +15,8 @@ import { LanguagePreferences } from '@/components/preferences/LanguagePreference
 import { PrivacyPreferences } from '@/components/preferences/PrivacyPreferences'
 import { DataManagement } from '@/components/preferences/DataManagement'
 import { RouteErrorBoundary } from '@/components/error-boundary'
-import { useUserId, useIsAuthenticated, useCurrentUser } from '@/hooks/useAuth'
+import { useUserId, useIsAuthenticated } from '@/hooks/useAuth'
+// Phase 1: useCurrentUser not needed yet
 
 type Tab = 'profile' | 'notifications' | 'display' | 'learning' | 'privacy' | 'data'
 
@@ -264,7 +265,7 @@ function PreferencesContent() {
 export default function PreferencesPage() {
   const userId = useUserId()
   const isAuthenticated = useIsAuthenticated()
-  const currentUser = useCurrentUser()
+  // const currentUser = useCurrentUser() // Phase 1: Not used yet
 
   // Redirect to login if not authenticated
   if (!isAuthenticated || !userId) {

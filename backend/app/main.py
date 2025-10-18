@@ -9,10 +9,12 @@ from contextlib import asynccontextmanager
 import logging
 from typing import Dict, Any
 
-from app.api import scraping, analysis, language, auth, scheduler, cache_admin, analysis_batch, search, export, notifications, preferences
+# PHASE 1: Core features only - minimal working backend
+from app.api import scraping, analysis, auth, preferences, health, avatar
+# Disabled for Phase 1: language, scheduler, analysis_batch, notifications, cache_admin, search, export
 from app.database.connection import init_db, close_db, get_pool_status
 from app.database.health import database_health_check, database_stats, pool_performance_test
-from app.services.scheduler import start_scheduler, stop_scheduler
+# Disabled for Phase 1: from app.services.scheduler import start_scheduler, stop_scheduler
 from app.search.elasticsearch_client import get_elasticsearch_client
 from app.middleware.rate_limiter import RateLimiter
 from app.middleware.security_headers import add_security_middleware
@@ -53,17 +55,19 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to Elasticsearch: {e}")
         logger.warning("Continuing without Elasticsearch - search features will be unavailable")
 
-    if settings.ENABLE_SCHEDULER:
-        await start_scheduler()
+    # PHASE 1: Scheduler disabled
+    # if settings.ENABLE_SCHEDULER:
+    #     await start_scheduler()
 
-    logger.info("Platform started successfully")
+    logger.info("Platform started successfully (Phase 1: Core Features)")
 
     yield
 
     # Shutdown
     logger.info("Shutting down platform...")
-    if settings.ENABLE_SCHEDULER:
-        await stop_scheduler(wait=True)
+    # PHASE 1: Scheduler disabled
+    # if settings.ENABLE_SCHEDULER:
+    #     await stop_scheduler(wait=True)
 
     # Disconnect Elasticsearch
     logger.info("Disconnecting Elasticsearch...")
@@ -134,17 +138,20 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(health.router, tags=["Health Checks"])  # Health checks at root level
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(avatar.router, tags=["Avatar Upload"])  # Avatar upload with built-in prefix
 app.include_router(scraping.router, prefix="/api/scraping", tags=["Web Scraping"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Intelligence Analysis"])
-app.include_router(analysis_batch.router, prefix="/api", tags=["Batch Analysis"])
-app.include_router(language.router, prefix="/api/language", tags=["Language Learning"])
-app.include_router(scheduler.router, prefix="/api/scheduler", tags=["Task Scheduler"])
-app.include_router(cache_admin.router, prefix="/api", tags=["Cache Administration"])
-app.include_router(search.router, prefix="/api", tags=["Search"])
-app.include_router(export.router, prefix="/api", tags=["Data Export"])
-app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
 app.include_router(preferences.router, tags=["User Preferences"])
+# PHASE 1: Disabled features - will enable in Phases 2-3
+# app.include_router(analysis_batch.router, prefix="/api", tags=["Batch Analysis"])
+# app.include_router(language.router, prefix="/api/language", tags=["Language Learning"])
+# app.include_router(scheduler.router, prefix="/api/scheduler", tags=["Task Scheduler"])
+# app.include_router(cache_admin.router, prefix="/api", tags=["Cache Administration"])
+# app.include_router(search.router, prefix="/api", tags=["Search"])
+# app.include_router(export.router, prefix="/api", tags=["Data Export"])
+# app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
 
 
 @app.get("/")
@@ -173,11 +180,8 @@ async def root() -> Dict[str, Any]:
     }
 
 
-@app.get("/health")
-async def health_check() -> Dict[str, str]:
-    """Basic health check endpoint for monitoring"""
-    return {"status": "healthy"}
-
+# Legacy health endpoints - kept for backward compatibility
+# New endpoints are in health.router
 
 @app.get("/health/database")
 async def database_health() -> Dict[str, Any]:

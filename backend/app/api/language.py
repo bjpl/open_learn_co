@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from ..database.connection import get_db
 from ..database.vocabulary_models import VocabularyLemma
 from ..database.models import User, UserVocabulary, LearningSession
-from backend.services.vocabulary_service import VocabularyService
+from services.vocabulary_service import VocabularyService
 
 router = APIRouter(prefix="/language", tags=["language"])
 

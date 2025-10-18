@@ -6,13 +6,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation'; // Phase 1: useRouter not needed
 import Link from 'next/link';
 import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
 import { CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
+  // Phase 1: router not used yet
+  // const router = useRouter();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [token, setToken] = useState<string>('');
