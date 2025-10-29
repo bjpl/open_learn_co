@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, Tag, Hash, Newspaper, BarChart3, Clock } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
+import ArticleDetail from '@/components/ArticleDetail'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -14,6 +15,7 @@ export default function TrendsPage() {
   const [trendingEntities, setTrendingEntities] = useState<{entity: string, count: number}[]>([])
   const [sourceDistribution, setSourceDistribution] = useState<{source: string, count: number}[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedArticle, setSelectedArticle] = useState<any | null>(null)
 
   useEffect(() => {
     const fetchTrendingData = async () => {
@@ -109,12 +111,18 @@ export default function TrendsPage() {
                 </h2>
                 <div className="space-y-3">
                   {trendingArticles.map((article, index) => (
-                    <div key={article.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                    <div
+                      key={article.id}
+                      className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
+                      onClick={() => setSelectedArticle(article)}
+                    >
                       <div className="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                         <span className="text-red-600 dark:text-red-400 font-bold text-sm">#{index + 1}</span>
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 dark:text-white text-sm">{article.title}</h3>
+                        <h3 className="font-medium text-gray-900 dark:text-white text-sm hover:text-yellow-600 dark:hover:text-yellow-400">
+                          {article.title}
+                        </h3>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                           <span className="text-yellow-600 dark:text-yellow-400">{article.source}</span>
                           <span>Complexity: {article.difficulty_score.toFixed(1)}/5.0</span>
@@ -218,7 +226,11 @@ export default function TrendsPage() {
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {articles.slice(0, 6).map((article) => (
-                    <div key={article.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-yellow-500 dark:hover:border-yellow-500 transition-colors">
+                    <div
+                      key={article.id}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-yellow-500 dark:hover:border-yellow-500 transition-colors cursor-pointer"
+                      onClick={() => setSelectedArticle(article)}
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <span className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
                           {article.source}
@@ -227,7 +239,7 @@ export default function TrendsPage() {
                           {article.word_count || 0} words
                         </span>
                       </div>
-                      <h3 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2">
+                      <h3 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 mb-2 hover:text-yellow-600 dark:hover:text-yellow-400">
                         {article.title}
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
@@ -240,6 +252,13 @@ export default function TrendsPage() {
             </ComponentErrorBoundary>
           </>
         )}
+
+        {/* Article Detail Modal */}
+        <ArticleDetail
+          article={selectedArticle}
+          isOpen={!!selectedArticle}
+          onClose={() => setSelectedArticle(null)}
+        />
       </div>
     </RouteErrorBoundary>
   )

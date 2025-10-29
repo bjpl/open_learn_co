@@ -5,6 +5,7 @@ import { Activity, TrendingUp, Users, FileText, Database } from 'lucide-react'
 import StatsCard from '@/components/StatsCard'
 import SourceStatus from '@/components/SourceStatus'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
+import ArticleDetail from '@/components/ArticleDetail'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [recentArticles, setRecentArticles] = useState<any[]>([])
   const [sourceStats, setSourceStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedArticle, setSelectedArticle] = useState<any | null>(null)
 
   useEffect(() => {
     // Fetch real data from API
@@ -119,6 +121,7 @@ export default function Dashboard() {
                   title={`${article.source}: ${article.title}`}
                   time={article.published_date ? new Date(article.published_date).toLocaleString() : 'Unknown'}
                   subtitle={article.subtitle}
+                  onClick={() => setSelectedArticle(article)}
                 />
               ))}
             </div>
@@ -130,12 +133,19 @@ export default function Dashboard() {
           )}
         </div>
       </ComponentErrorBoundary>
+
+      {/* Article Detail Modal */}
+      <ArticleDetail
+        article={selectedArticle}
+        isOpen={!!selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+      />
       </div>
     </RouteErrorBoundary>
   )
 }
 
-function ActivityItem({ type, title, time, subtitle }: { type: string; title: string; time: string; subtitle?: string }) {
+function ActivityItem({ type, title, time, subtitle, onClick }: { type: string; title: string; time: string; subtitle?: string; onClick?: () => void }) {
   const getIcon = () => {
     switch(type) {
       case 'news': return <FileText className="w-4 h-4" />
@@ -155,13 +165,18 @@ function ActivityItem({ type, title, time, subtitle }: { type: string; title: st
   }
 
   return (
-    <div className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+    <div
+      className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <div className={`mt-0.5 ${getColor()}`}>
         {getIcon()}
       </div>
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900 dark:text-white">{title}</p>
-        {subtitle && <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white hover:text-yellow-600 dark:hover:text-yellow-400">
+          {title}
+        </p>
+        {subtitle && <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{subtitle}</p>}
         <p className="text-xs text-gray-500 dark:text-gray-400">{time}</p>
       </div>
     </div>

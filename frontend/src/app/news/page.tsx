@@ -6,6 +6,7 @@ import { RouteErrorBoundary } from '@/components/error-boundary'
 import { FilterPanel } from '@/components/filters/FilterPanel'
 import { SortControl } from '@/components/filters/SortControl'
 import { useFilters } from '@/lib/filters/filter-hooks'
+import ArticleDetail from '@/components/ArticleDetail'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -16,6 +17,7 @@ export default function NewsPage() {
   const { activeCount } = useFilters()
   const [newsItems, setNewsItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedArticle, setSelectedArticle] = useState<any | null>(null)
 
   useEffect(() => {
     // Fetch real articles from backend
@@ -83,7 +85,11 @@ export default function NewsPage() {
               </div>
             ) : newsItems.length > 0 ? (
               newsItems.map((item) => (
-                <NewsCard key={item.id} article={item} />
+                <NewsCard
+                  key={item.id}
+                  article={item}
+                  onClick={() => setSelectedArticle(item)}
+                />
               ))
             ) : (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-8 text-center">
@@ -108,11 +114,18 @@ export default function NewsPage() {
           </div>
         </div>
       )}
+
+      {/* Article Detail Modal */}
+      <ArticleDetail
+        article={selectedArticle}
+        isOpen={!!selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+      />
     </RouteErrorBoundary>
   )
 }
 
-function NewsCard({ article }: { article: any }) {
+function NewsCard({ article, onClick }: { article: any; onClick: () => void }) {
   // Calculate time ago from published_date
   const getTimeAgo = (dateString: string) => {
     if (!dateString) return 'Unknown'
@@ -133,7 +146,10 @@ function NewsCard({ article }: { article: any }) {
   const isTrending = article.difficulty_score >= 4.5
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+    <div
+      className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-4 mb-2 flex-wrap">
@@ -155,7 +171,7 @@ function NewsCard({ article }: { article: any }) {
             </span>
           </div>
 
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 hover:text-yellow-600 dark:hover:text-yellow-400 cursor-pointer">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 hover:text-yellow-600 dark:hover:text-yellow-400">
             {article.title}
           </h3>
 
@@ -191,17 +207,15 @@ function NewsCard({ article }: { article: any }) {
               )}
             </div>
 
-            {article.source_url && (
-              <a
-                href={article.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300"
-              >
-                Read original
-                <ExternalLink className="w-3 h-3 ml-1" />
-              </a>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onClick()
+              }}
+              className="flex items-center text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium"
+            >
+              Read more →
+            </button>
           </div>
         </div>
       </div>
