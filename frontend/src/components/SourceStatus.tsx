@@ -1,20 +1,23 @@
 'use client'
 
-import { CheckCircle, AlertCircle, XCircle } from 'lucide-react'
+import { CheckCircle, Database } from 'lucide-react'
 
-const sources = [
-  { name: 'El Tiempo', status: 'online', lastUpdate: '2 min ago', articles: 342 },
-  { name: 'DANE API', status: 'online', lastUpdate: '5 min ago', articles: 1250 },
-  { name: 'El Espectador', status: 'online', lastUpdate: '8 min ago', articles: 289 },
-  { name: 'Banco República', status: 'warning', lastUpdate: '45 min ago', articles: 156 },
-  { name: 'Semana', status: 'online', lastUpdate: '12 min ago', articles: 198 },
-  { name: 'SECOP API', status: 'offline', lastUpdate: '2 hours ago', articles: 0 },
-  { name: 'La República', status: 'online', lastUpdate: '15 min ago', articles: 167 },
-  { name: 'Portafolio', status: 'online', lastUpdate: '18 min ago', articles: 134 },
-  { name: 'IDEAM', status: 'online', lastUpdate: '22 min ago', articles: 89 },
-]
+interface Source {
+  name: string
+  articles: number
+  status: string
+}
 
-export default function SourceStatus() {
+export default function SourceStatus({ sources }: { sources: Source[] }) {
+  // ONLY REAL DATA - No mock sources
+  if (!sources || sources.length === 0) {
+    return (
+      <div className="col-span-3 text-center text-gray-500 dark:text-gray-400 p-8">
+        No sources found. Run scrapers to populate data.
+      </div>
+    )
+  }
+
   return (
     <>
       {sources.map((source) => (
@@ -25,45 +28,18 @@ export default function SourceStatus() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h4 className="font-semibold text-gray-900 dark:text-white">{source.name}</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Last update: {source.lastUpdate}
-              </p>
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                {source.articles} articles today
+                <Database className="inline w-4 h-4 mr-1" />
+                {source.articles} articles in database
               </p>
             </div>
-            <StatusIcon status={source.status} />
+            <div className="flex items-center space-x-1">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-xs text-green-600 dark:text-green-400">Active</span>
+            </div>
           </div>
         </div>
       ))}
     </>
   )
-}
-
-function StatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case 'online':
-      return (
-        <div className="flex items-center space-x-1">
-          <CheckCircle className="w-5 h-5 text-green-500" />
-          <span className="text-xs text-green-600 dark:text-green-400">Online</span>
-        </div>
-      )
-    case 'warning':
-      return (
-        <div className="flex items-center space-x-1">
-          <AlertCircle className="w-5 h-5 text-yellow-500" />
-          <span className="text-xs text-yellow-600 dark:text-yellow-400">Slow</span>
-        </div>
-      )
-    case 'offline':
-      return (
-        <div className="flex items-center space-x-1">
-          <XCircle className="w-5 h-5 text-red-500" />
-          <span className="text-xs text-red-600 dark:text-red-400">Offline</span>
-        </div>
-      )
-    default:
-      return null
-  }
 }
