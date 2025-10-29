@@ -190,9 +190,12 @@ class ElTiempoScraper(BaseScraper):
                     if isinstance(data, list):
                         data = data[0] if data else {}
 
-                    # Check if this is a NewsArticle or ReportageNewsArticle
+                    # Check if this is any type of news article
                     article_type = data.get('@type', '')
-                    if article_type not in ['NewsArticle', 'ReportageNewsArticle', 'Article']:
+                    # Accept any article type that contains "Article" or is a news-related type
+                    valid_types = ['NewsArticle', 'ReportageNewsArticle', 'Article', 'OpinionNewsArticle',
+                                   'AnalysisNewsArticle', 'BackgroundNewsArticle', 'ReviewNewsArticle']
+                    if article_type not in valid_types:
                         continue
 
                     article = {
@@ -215,10 +218,15 @@ class ElTiempoScraper(BaseScraper):
                     description = data.get('description')
                     article['subtitle'] = self.clean_text(description) if description else ""
 
-                    # Extract published date
+                    # Extract published date - return as DateTime object, not string
                     published_date = data.get('datePublished')
                     if published_date:
-                        article['published_date'] = self._normalize_iso_date(published_date)
+                        # Parse and convert to naive datetime for database
+                        try:
+                            dt = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                            article['published_date'] = dt.replace(tzinfo=None) if dt.tzinfo else dt
+                        except:
+                            article['published_date'] = None
                     else:
                         article['published_date'] = None
                         logger.warning(f"No datePublished in JSON-LD for {url}")
@@ -359,10 +367,13 @@ class ElTiempoScraper(BaseScraper):
         return any(indicator in content_lower for indicator in paywall_indicators)
 
     def _normalize_iso_date(self, date_str: str) -> str:
-        """Normalize ISO date string to consistent format"""
+        """Normalize ISO date string and strip timezone for database compatibility"""
         try:
             # Parse various ISO formats
             date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            # Strip timezone - database uses naive datetimes
+            if date_obj.tzinfo:
+                date_obj = date_obj.replace(tzinfo=None)
             return date_obj.isoformat()
         except Exception as e:
             logger.warning(f"Failed to normalize date '{date_str}': {str(e)}")

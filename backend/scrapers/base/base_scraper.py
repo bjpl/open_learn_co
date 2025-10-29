@@ -142,14 +142,31 @@ class BaseScraper(ABC):
                         article_data["source"] = self.name
                         article_data["source_url"] = url
                         article_data["category"] = self.category
-                        article_data["scraped_at"] = datetime.utcnow().isoformat()
+                        # Make scraped_at timezone-naive to match database expectations
+                        article_data["scraped_at"] = datetime.utcnow().replace(tzinfo=None)
                         article_data["content_hash"] = self.generate_content_hash(
                             article_data.get("content", "")
                         )
 
-                        # Extract additional metadata
+                        # Extract additional metadata and merge with existing extra_metadata
                         metadata = self.extract_metadata(soup)
-                        article_data["metadata"] = metadata
+                        if "extra_metadata" not in article_data:
+                            article_data["extra_metadata"] = {}
+                        article_data["extra_metadata"].update(metadata)
+
+                        # Ensure published_date is DateTime and timezone-naive
+                        if "published_date" in article_data:
+                            if isinstance(article_data["published_date"], str):
+                                from dateutil import parser as date_parser
+                                try:
+                                    parsed_date = date_parser.isoparse(article_data["published_date"])
+                                    # Remove timezone to make it naive (database uses naive datetimes)
+                                    article_data["published_date"] = parsed_date.replace(tzinfo=None)
+                                except:
+                                    article_data["published_date"] = None
+                            elif hasattr(article_data["published_date"], 'tzinfo') and article_data["published_date"].tzinfo:
+                                # If it's already a datetime with timezone, strip the timezone
+                                article_data["published_date"] = article_data["published_date"].replace(tzinfo=None)
 
                         scraped_items.append(ScrapedContent(**article_data))
 
