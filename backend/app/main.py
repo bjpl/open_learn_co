@@ -5,6 +5,7 @@ Main FastAPI application entry point
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.middleware.custom_cors import CustomCORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from typing import Dict, Any
@@ -93,19 +94,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Apply Security Middleware (MUST be before CORS)
-# Implements HSTS, CSP, X-Frame-Options, X-Content-Type-Options, etc.
-add_security_middleware(app, settings)
-
-# Apply Cache Middleware (MUST be before compression for proper handling)
-# Implements HTTP response caching with ETag support and 304 responses
-# Improves response times by 50-70% for cacheable endpoints
+# ⚠️ CRITICAL: CORS MUST BE FIRST MIDDLEWARE!
+# Using custom CORS middleware as workaround for FastAPI CORSMiddleware bug
+# where it doesn't send Access-Control-Allow-Origin header with other middleware
 app.add_middleware(
-    CacheMiddleware,
-    enabled=True
+    CustomCORSMiddleware,
+    allowed_origins=settings.ALLOWED_ORIGINS
 )
 
-# Apply Compression Middleware (MUST be before CORS for proper header handling)
+# Apply Compression Middleware
 # Implements Brotli (preferred) and Gzip (fallback) compression
 # Reduces bandwidth usage by 60-80% for JSON/HTML responses
 app.add_middleware(
@@ -116,16 +113,17 @@ app.add_middleware(
     enabled=getattr(settings, 'ENABLE_COMPRESSION', True),
 )
 
-# Configure CORS (Restricted for production security)
+# Apply Cache Middleware
+# Implements HTTP response caching with ETag support and 304 responses
+# Improves response times by 50-70% for cacheable endpoints
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,  # Must be explicit list, no wildcards
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],  # Specific methods only
-    allow_headers=["Content-Type", "Authorization", "Accept"],  # Specific headers only
-    expose_headers=["X-Total-Count"],
-    max_age=600,  # Cache preflight for 10 minutes
+    CacheMiddleware,
+    enabled=True
 )
+
+# Apply Security Middleware
+# Implements HSTS, CSP, X-Frame-Options, X-Content-Type-Options, etc.
+add_security_middleware(app, settings)
 
 # Configure Rate Limiting
 # Redis-based rate limiting with per-user and per-IP tracking
