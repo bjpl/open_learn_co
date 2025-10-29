@@ -361,7 +361,9 @@ class PortafolioScraper(SmartScraper):
                     for date_field in ['datePublished', 'dateCreated', 'publishedDate']:
                         if date_field in data:
                             try:
-                                return datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                                # Parse and convert to naive datetime for database
+                                dt = datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                                return dt.replace(tzinfo=None) if dt.tzinfo else dt
                             except:
                                 pass
             except:

@@ -244,18 +244,18 @@ class ElEspectadorScraper(SmartScraper):
                     else:
                         author = author_data.get('name', 'El Espectador')
 
-                    # Extract date
-                    date_str = data.get('datePublished', '')
-                    published_date = None
-                    if date_str:
+                    # Extract published date - return as DateTime object, not string
+                    published_date = data.get('datePublished')
+                    if published_date:
+                        # Parse and convert to naive datetime for database
                         try:
-                            # Handle timezone offset format
-                            published_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                            dt = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                            published_date = dt.replace(tzinfo=None) if dt.tzinfo else dt
                         except Exception as e:
-                            logger.warning(f"Error parsing date {date_str}: {e}")
-                            published_date = datetime.utcnow()
+                            logger.warning(f"Error parsing date {published_date}: {e}")
+                            published_date = None
                     else:
-                        published_date = datetime.utcnow()
+                        published_date = None
 
                     # Extract category from URL
                     category = self._extract_category(soup, url)

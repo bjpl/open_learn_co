@@ -189,14 +189,15 @@ class SemanaScraper(SmartScraper):
         else:
             author = str(author_data) if author_data else 'Semana'
 
-        # Extract date
-        published_str = data.get('datePublished', '')
-        published_date = None
-        if published_str:
+        # Extract published date - return as DateTime object, not string
+        published_date = data.get('datePublished')
+        if published_date:
+            # Parse and convert to naive datetime for database
             try:
-                published_date = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+                dt = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+                published_date = dt.replace(tzinfo=None) if dt.tzinfo else dt
             except:
-                pass
+                published_date = None
 
         if not published_date:
             published_date = self._extract_date(soup, url)
