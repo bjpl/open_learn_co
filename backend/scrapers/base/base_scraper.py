@@ -131,7 +131,7 @@ class BaseScraper(ABC):
             logger.info(f"Found {len(article_urls)} articles to scrape from {self.name}")
 
             # Scrape each article
-            for url in article_urls[:10]:  # Limit for testing
+            for url in article_urls[:50]:  # Increased limit for content ingestion
                 html = await self.fetch_page(url)
                 if html:
                     soup = self.parse_html(html)
