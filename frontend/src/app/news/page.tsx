@@ -1,78 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { Clock, ExternalLink, Tag, TrendingUp, Filter } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Clock, ExternalLink, Tag, TrendingUp, Filter, Database } from 'lucide-react'
 import { RouteErrorBoundary } from '@/components/error-boundary'
 import { FilterPanel } from '@/components/filters/FilterPanel'
 import { SortControl } from '@/components/filters/SortControl'
 import { useFilters } from '@/lib/filters/filter-hooks'
 
-const newsItems = [
-  {
-    id: 1,
-    title: 'Colombian Economy Shows Signs of Recovery Amid Global Uncertainty',
-    source: 'El Tiempo',
-    category: 'Economy',
-    time: '2 hours ago',
-    summary: 'Recent data from DANE shows positive indicators in key economic sectors, suggesting a gradual recovery despite international challenges.',
-    sentiment: 'positive',
-    trending: true,
-  },
-  {
-    id: 2,
-    title: 'New Infrastructure Projects Announced for Pacific Region',
-    source: 'La República',
-    category: 'Infrastructure',
-    time: '3 hours ago',
-    summary: 'Government announces major investment in road and port infrastructure to boost connectivity and trade in the Pacific region.',
-    sentiment: 'positive',
-    trending: false,
-  },
-  {
-    id: 3,
-    title: 'Technology Sector Creates 5000 New Jobs in Bogotá',
-    source: 'Portafolio',
-    category: 'Technology',
-    time: '4 hours ago',
-    summary: 'Tech companies expand operations in the capital, creating thousands of new opportunities for software developers and IT professionals.',
-    sentiment: 'positive',
-    trending: true,
-  },
-  {
-    id: 4,
-    title: 'Environmental Concerns Rise Over Deforestation Rates',
-    source: 'El Espectador',
-    category: 'Environment',
-    time: '5 hours ago',
-    summary: 'IDEAM reports concerning deforestation levels in the Amazon region, prompting calls for stronger environmental protection measures.',
-    sentiment: 'negative',
-    trending: false,
-  },
-  {
-    id: 5,
-    title: 'Education Reform Bill Passes First Congressional Debate',
-    source: 'Semana',
-    category: 'Education',
-    time: '6 hours ago',
-    summary: 'Proposed education reforms aimed at improving quality and access move forward in Congress with broad political support.',
-    sentiment: 'neutral',
-    trending: true,
-  },
-  {
-    id: 6,
-    title: 'Central Bank Maintains Interest Rates Amid Inflation Concerns',
-    source: 'Dinero',
-    category: 'Finance',
-    time: '7 hours ago',
-    summary: 'Banco de la República decides to keep interest rates unchanged, balancing inflation control with economic growth objectives.',
-    sentiment: 'neutral',
-    trending: false,
-  },
-]
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
+
+// NO MOCK DATA - All articles fetched from real backend API
 
 export default function NewsPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const { activeCount } = useFilters()
+  const [newsItems, setNewsItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Fetch real articles from backend
+    const fetchArticles = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=50`)
+        const data = await response.json()
+        setNewsItems(data.items || [])
+      } catch (error) {
+        console.error('Failed to fetch articles:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchArticles()
+  }, [])
 
   return (
     <RouteErrorBoundary>
@@ -115,11 +74,27 @@ export default function NewsPage() {
             </div>
           </div>
 
-          {/* News Grid */}
+          {/* News Grid - REAL DATA */}
           <div className="grid gap-6">
-            {newsItems.map((item) => (
-              <NewsCard key={item.id} {...item} />
-            ))}
+            {loading ? (
+              <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm text-center">
+                <Database className="w-12 h-12 mx-auto mb-4 text-yellow-500 animate-pulse" />
+                <p className="text-gray-500 dark:text-gray-400">Loading real articles from database...</p>
+              </div>
+            ) : newsItems.length > 0 ? (
+              newsItems.map((item) => (
+                <NewsCard key={item.id} article={item} />
+              ))
+            ) : (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-8 text-center">
+                <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  No articles found
+                </h3>
+                <p className="text-yellow-700 dark:text-yellow-300">
+                  Run scrapers to populate content: POST {API_URL}/api/scraping/trigger/El%20Tiempo
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -137,74 +112,96 @@ export default function NewsPage() {
   )
 }
 
-function NewsCard({
-  title,
-  source,
-  category,
-  time,
-  summary,
-  sentiment,
-  trending,
-}: {
-  title: string
-  source: string
-  category: string
-  time: string
-  summary: string
-  sentiment: string
-  trending: boolean
-}) {
-  const getSentimentColor = () => {
-    switch (sentiment) {
-      case 'positive': return 'text-green-500'
-      case 'negative': return 'text-red-500'
-      default: return 'text-gray-500'
-    }
+function NewsCard({ article }: { article: any }) {
+  // Calculate time ago from published_date
+  const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Unknown'
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 60) return `${diffMins} minutes ago`
+    if (diffHours < 24) return `${diffHours} hours ago`
+    if (diffDays < 7) return `${diffDays} days ago`
+    return date.toLocaleDateString()
   }
+
+  // Determine if article is trending (high difficulty = more complex/important)
+  const isTrending = article.difficulty_score >= 4.5
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <div className="flex items-center space-x-4 mb-2">
+          <div className="flex items-center space-x-4 mb-2 flex-wrap">
             <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
-              {source}
+              {article.source}
             </span>
             <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              {time}
+              {getTimeAgo(article.published_date)}
             </span>
-            {trending && (
+            {isTrending && (
               <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-full flex items-center">
                 <TrendingUp className="w-3 h-3 mr-1" />
                 Trending
               </span>
             )}
+            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
+              {article.word_count || 0} words
+            </span>
           </div>
 
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 hover:text-yellow-600 dark:hover:text-yellow-400 cursor-pointer">
-            {title}
+            {article.title}
           </h3>
 
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            {summary}
+          {article.subtitle && (
+            <p className="text-gray-600 dark:text-gray-300 mb-2 text-sm italic">
+              {article.subtitle}
+            </p>
+          )}
+
+          <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
+            {article.content || 'No preview available'}
           </p>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center space-x-4 flex-wrap gap-2">
               <span className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Tag className="w-3 h-3 mr-1" />
-                {category}
+                {article.category || 'News'}
               </span>
-              <span className={`text-sm font-medium ${getSentimentColor()}`}>
-                Sentiment: {sentiment}
-              </span>
+              {article.author && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  By {article.author}
+                </span>
+              )}
+              {article.tags && article.tags.length > 0 && (
+                <div className="flex gap-1">
+                  {article.tags.slice(0, 3).map((tag: string, i: number) => (
+                    <span key={i} className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <button className="flex items-center text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300">
-              Read more
-              <ExternalLink className="w-3 h-3 ml-1" />
-            </button>
+            {article.source_url && (
+              <a
+                href={article.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300"
+              >
+                Read original
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </a>
+            )}
           </div>
         </div>
       </div>
