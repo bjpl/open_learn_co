@@ -44,9 +44,14 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "openlearn123"
     POSTGRES_DB: str = "openlearn"
 
+    # Development: Use SQLite for simplicity
+    USE_SQLITE: bool = False  # Set to True to use SQLite instead of PostgreSQL
+
     @property
     def DATABASE_URL(self) -> str:
         """Async database URL for SQLAlchemy async operations"""
+        if self.USE_SQLITE:
+            return "sqlite+aiosqlite:///./openlearn_colombia.db"
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property

@@ -12,9 +12,9 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      # - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Commented out - using Alembic migrations instead
     ports:
-      - "5432:5432"
+      - "5435:5432"  # Changed to 5435 to avoid conflicts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U colombian_user -d colombian_platform"]
       interval: 10s
