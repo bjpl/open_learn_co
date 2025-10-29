@@ -1,10 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Activity, TrendingUp, Users, FileText, Database } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import StatsCard from '@/components/StatsCard'
 import SourceStatus from '@/components/SourceStatus'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
 const monthlyData = [
   { month: 'Jan', articles: 1243, sources: 45, sentiment: 0.65 },
@@ -34,6 +37,27 @@ const sentimentTrend = [
 ]
 
 export default function Dashboard() {
+  const [articleCount, setArticleCount] = useState<number>(0)
+  const [recentArticles, setRecentArticles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Fetch real data from API
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=10`)
+        const data = await response.json()
+        setRecentArticles(data.items || [])
+        setArticleCount(data.count || 0)
+      } catch (error) {
+        console.error('Failed to fetch articles:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
   return (
     <RouteErrorBoundary>
       <div className="space-y-8">
@@ -41,7 +65,7 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg p-8 text-white">
         <h1 className="text-4xl font-bold mb-2">Colombian Data Intelligence Dashboard</h1>
         <p className="text-yellow-100 text-lg">
-          Real-time insights from {monthlyData[monthlyData.length - 1].sources} active sources
+          Real-time insights from {monthlyData[monthlyData.length - 1].sources} active sources • {articleCount} articles in database
         </p>
       </div>
 
@@ -49,7 +73,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Articles"
-          value="12,485"
+          value={articleCount > 0 ? articleCount.toString() : "0"}
           change={12.5}
           icon={FileText}
           trend="up"
@@ -171,32 +195,30 @@ export default function Dashboard() {
         </div>
       </ComponentErrorBoundary>
 
-      {/* Recent Activity Feed */}
+      {/* Recent Activity Feed - REAL DATA */}
       <ComponentErrorBoundary>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Recent Activity</h3>
-          <div className="space-y-3">
-            <ActivityItem
-              type="news"
-              title="El Tiempo: New economic measures announced"
-              time="2 minutes ago"
-            />
-            <ActivityItem
-              type="api"
-              title="DANE API: Population statistics updated"
-              time="15 minutes ago"
-            />
-            <ActivityItem
-              type="analysis"
-              title="Sentiment analysis completed for 500 articles"
-              time="1 hour ago"
-            />
-            <ActivityItem
-              type="news"
-              title="Semana: Political developments in Bogotá"
-              time="2 hours ago"
-            />
-          </div>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Recent Articles from Database</h3>
+          {loading ? (
+            <div className="text-gray-500 dark:text-gray-400">Loading real data...</div>
+          ) : recentArticles.length > 0 ? (
+            <div className="space-y-3">
+              {recentArticles.map((article, index) => (
+                <ActivityItem
+                  key={article.id || index}
+                  type="news"
+                  title={`${article.source}: ${article.title}`}
+                  time={article.published_date ? new Date(article.published_date).toLocaleString() : 'Unknown'}
+                  subtitle={article.subtitle}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-yellow-600 dark:text-yellow-400 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <p className="font-semibold">No articles in database yet!</p>
+              <p className="text-sm mt-2">Run scraper to populate: POST {API_URL}/api/scraping/trigger/El%20Tiempo</p>
+            </div>
+          )}
         </div>
       </ComponentErrorBoundary>
       </div>
@@ -204,7 +226,7 @@ export default function Dashboard() {
   )
 }
 
-function ActivityItem({ type, title, time }: { type: string; title: string; time: string }) {
+function ActivityItem({ type, title, time, subtitle }: { type: string; title: string; time: string; subtitle?: string }) {
   const getIcon = () => {
     switch(type) {
       case 'news': return <FileText className="w-4 h-4" />
@@ -230,6 +252,7 @@ function ActivityItem({ type, title, time }: { type: string; title: string; time
       </div>
       <div className="flex-1">
         <p className="text-sm font-medium text-gray-900 dark:text-white">{title}</p>
+        {subtitle && <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>}
         <p className="text-xs text-gray-500 dark:text-gray-400">{time}</p>
       </div>
     </div>

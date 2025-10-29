@@ -39,15 +39,15 @@ class ElEspectadorScraper(SmartScraper):
         ]
 
         # CSS selectors for El Espectador's structure
+        # Note: El Espectador uses JSON-LD structured data as primary source
         self.selectors = {
-            'article_links': '.Card-link, .CardHome-link, .ArticleCard-link, h2 a, h3 a',
-            'title': 'h1.Article-title, h1.Titulo, h1',
-            'subtitle': '.Article-summary, .Bajada, .lead',
-            'content': '.Article-content, .Texto, .content-body',
-            'author': '.Article-author, .Autor, .author-name',
-            'date': '.Article-date, time, .fecha',
-            'category': '.Article-section, .Seccion, .breadcrumb-item',
-            'tags': '.Article-tags a, .tags a'
+            'article_links': 'a[href*="/politica/"], a[href*="/economia/"], a[href*="/justicia/"], h2 a, h3 a',
+            'title': 'h1',
+            'content': 'article p',
+            'author': 'a[href*="/autores/"]',
+            'date': 'time',
+            'category': 'a[href*="/politica/"], a[href*="/economia/"]',
+            'json_ld': 'script[type="application/ld+json"]'
         }
 
     def extract_article_urls(self, homepage_html: str) -> List[str]:
@@ -134,6 +134,14 @@ class ElEspectadorScraper(SmartScraper):
         soup = self.parse_html(article_html)
 
         try:
+            # Try JSON-LD extraction first (most reliable for El Espectador)
+            json_ld_doc = self._extract_from_json_ld(soup, url)
+            if json_ld_doc:
+                return json_ld_doc
+
+            # Fallback to HTML extraction
+            logger.info(f"JSON-LD extraction failed, trying HTML for {url}")
+
             # Extract title
             title_elem = soup.select_one(self.selectors['title'])
             if not title_elem:
@@ -141,26 +149,30 @@ class ElEspectadorScraper(SmartScraper):
                 return None
             title = self._clean_text(title_elem.get_text())
 
-            # Extract content
-            content_elem = soup.select_one(self.selectors['content'])
-            if not content_elem:
-                logger.warning(f"No content found for {url}")
+            # Extract content from article paragraphs
+            article_elem = soup.find('article')
+            if not article_elem:
+                logger.warning(f"No article element found for {url}")
                 return None
 
-            # Get paragraphs and clean content
-            paragraphs = content_elem.find_all(['p', 'div'])
+            # Get paragraphs and filter content
+            paragraphs = article_elem.find_all('p')
             content_parts = []
 
             for p in paragraphs:
                 text = self._clean_text(p.get_text())
-                if text and len(text) > 20:  # Filter short/empty paragraphs
+                # Filter out noise: short paragraphs, audio notices, "Lea también" links
+                if (text and len(text) > 50 and
+                    'Audio generado' not in text and
+                    'Lea también' not in text and
+                    'Sugerimos' not in text[:20]):
                     content_parts.append(text)
 
             content = ' '.join(content_parts)
 
             # Check for minimal content
             if len(content) < 200:
-                logger.warning(f"Content too short for {url}")
+                logger.warning(f"Content too short for {url}: {len(content)} chars")
                 return None
 
             # Extract metadata
@@ -199,8 +211,95 @@ class ElEspectadorScraper(SmartScraper):
             logger.error(f"Error extracting content from {url}: {e}")
             return None
 
+    def _extract_from_json_ld(self, soup: BeautifulSoup, url: str) -> Optional[ScrapedDocument]:
+        """Extract article data from JSON-LD structured data"""
+        try:
+            import json
+
+            # Find all JSON-LD scripts
+            scripts = soup.find_all('script', type='application/ld+json')
+
+            for script in scripts:
+                if not script.string:
+                    continue
+
+                try:
+                    data = json.loads(script.string)
+
+                    # Look for NewsArticle schema
+                    if data.get('@type') != 'NewsArticle':
+                        continue
+
+                    # Extract required fields
+                    title = data.get('headline', '').strip()
+                    content = data.get('articleBody', '').strip()
+
+                    if not title or not content or len(content) < 200:
+                        continue
+
+                    # Extract author
+                    author_data = data.get('author', {})
+                    if isinstance(author_data, list):
+                        author = author_data[0].get('name', 'El Espectador') if author_data else 'El Espectador'
+                    else:
+                        author = author_data.get('name', 'El Espectador')
+
+                    # Extract date
+                    date_str = data.get('datePublished', '')
+                    published_date = None
+                    if date_str:
+                        try:
+                            # Handle timezone offset format
+                            published_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                        except Exception as e:
+                            logger.warning(f"Error parsing date {date_str}: {e}")
+                            published_date = datetime.utcnow()
+                    else:
+                        published_date = datetime.utcnow()
+
+                    # Extract category from URL
+                    category = self._extract_category(soup, url)
+
+                    # Extract Colombian entities and calculate difficulty
+                    entities = self._extract_colombian_entities(content)
+                    difficulty = self._calculate_difficulty(content)
+
+                    # Create document
+                    doc = ScrapedDocument(
+                        source=self.source_name,
+                        source_type='newspaper',
+                        url=url,
+                        title=title,
+                        content=content,
+                        author=author,
+                        published_date=published_date,
+                        metadata={
+                            'category': category,
+                            'entities': entities,
+                            'word_count': len(content.split()),
+                            'source_bias': 'center-left',
+                            'extraction_method': 'json-ld'
+                        },
+                        language='es',
+                        difficulty_level=self._get_difficulty_level(difficulty),
+                        region='Colombia',
+                        categories=[category] if category else ['general']
+                    )
+
+                    logger.info(f"Successfully extracted article via JSON-LD: {title[:50]}...")
+                    return doc
+
+                except json.JSONDecodeError:
+                    continue
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error extracting from JSON-LD for {url}: {e}")
+            return None
+
     def _extract_author(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract article author"""
+        """Extract article author from HTML"""
         author_elem = soup.select_one(self.selectors['author'])
         if author_elem:
             author_text = self._clean_text(author_elem.get_text())
@@ -210,21 +309,25 @@ class ElEspectadorScraper(SmartScraper):
         return "El Espectador"
 
     def _extract_date(self, soup: BeautifulSoup, url: str) -> Optional[datetime]:
-        """Extract publication date"""
+        """Extract publication date from HTML"""
         date_elem = soup.select_one(self.selectors['date'])
 
         if date_elem:
             # Try datetime attribute first
-            if date_elem.get('datetime'):
+            datetime_attr = date_elem.get('datetime', '')
+            if datetime_attr:
                 try:
-                    return datetime.fromisoformat(date_elem.get('datetime').replace('Z', '+00:00'))
-                except:
-                    pass
+                    # Handle both Z and timezone offset formats
+                    return datetime.fromisoformat(datetime_attr.replace('Z', '+00:00'))
+                except Exception as e:
+                    logger.debug(f"Error parsing datetime attribute {datetime_attr}: {e}")
 
             # Try to parse text
             date_text = self._clean_text(date_elem.get_text())
             if date_text:
-                return self._parse_spanish_date(date_text)
+                parsed_date = self._parse_spanish_date(date_text)
+                if parsed_date:
+                    return parsed_date
 
         # Try to extract from URL
         date_match = re.search(r'/(\d{4})/(\d{2})/(\d{2})/', url)
@@ -232,9 +335,10 @@ class ElEspectadorScraper(SmartScraper):
             year, month, day = date_match.groups()
             try:
                 return datetime(int(year), int(month), int(day))
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Error parsing date from URL: {e}")
 
+        logger.warning(f"Could not extract date for {url}, using current time")
         return datetime.utcnow()
 
     def _extract_category(self, soup: BeautifulSoup, url: str) -> str:

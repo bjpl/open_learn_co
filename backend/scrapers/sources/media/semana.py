@@ -4,6 +4,7 @@ Colombia's leading political and current affairs magazine
 """
 
 import re
+import json
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -130,89 +131,181 @@ class SemanaScraper(SmartScraper):
         return (has_indicator or has_id) and not should_exclude
 
     def extract_article_content(self, article_html: str, url: str) -> Optional[ScrapedDocument]:
-        """Extract content from Semana article"""
+        """Extract content from Semana article using JSON-LD first, then HTML fallback"""
         soup = self.parse_html(article_html)
 
         try:
-            # Extract title
-            title_elem = soup.select_one(self.selectors['title'])
-            if not title_elem:
-                logger.warning(f"No title found for {url}")
-                return None
-            title = self._clean_text(title_elem.get_text())
+            # Try JSON-LD first (most reliable)
+            json_ld_data = self._extract_json_ld(soup)
+            if json_ld_data:
+                return self._create_document_from_json_ld(json_ld_data, url, soup)
 
-            # Extract subtitle
-            subtitle_elem = soup.select_one(self.selectors['subtitle'])
-            subtitle = self._clean_text(subtitle_elem.get_text()) if subtitle_elem else ""
-
-            # Extract content
-            content_elem = soup.select_one(self.selectors['content'])
-            if not content_elem:
-                logger.warning(f"No content found for {url}")
-                return None
-
-            # Process content paragraphs
-            content_parts = []
-            if subtitle:
-                content_parts.append(subtitle)
-
-            paragraphs = content_elem.find_all(['p', 'div'])
-            for p in paragraphs:
-                text = self._clean_text(p.get_text())
-                if text and len(text) > 30:  # Filter short paragraphs
-                    # Skip ads and promotional content
-                    if not self._is_promotional_content(text):
-                        content_parts.append(text)
-
-            content = ' '.join(content_parts)
-
-            # Check content quality
-            if len(content) < 300:
-                logger.warning(f"Content too short for {url}")
-                return None
-
-            # Check for paywall
-            if self._is_paywall_content(content):
-                logger.info(f"Paywall detected for {url}")
-
-            # Extract metadata
-            author = self._extract_author(soup)
-            published_date = self._extract_date(soup, url)
-            category = self._extract_category(soup, url)
-
-            # Extract entities and analysis
-            entities = self._extract_colombian_entities(content)
-            difficulty = self._calculate_difficulty(content)
-            political_bias = self._detect_political_bias(content)
-
-            # Create document
-            doc = ScrapedDocument(
-                source=self.source_name,
-                source_type='magazine',
-                url=url,
-                title=title,
-                content=content,
-                author=author,
-                published_date=published_date,
-                metadata={
-                    'category': category,
-                    'entities': entities,
-                    'word_count': len(content.split()),
-                    'source_bias': 'center-right',
-                    'political_content': political_bias,
-                    'content_type': 'analysis' if 'opinion' in url else 'news'
-                },
-                language='es',
-                difficulty_level=self._get_difficulty_level(difficulty),
-                region='Colombia',
-                categories=[category] if category else ['política']
-            )
-
-            return doc
+            # Fallback to HTML parsing
+            return self._extract_from_html(soup, url)
 
         except Exception as e:
             logger.error(f"Error extracting content from {url}: {e}")
             return None
+
+    def _extract_json_ld(self, soup: BeautifulSoup) -> Optional[Dict]:
+        """Extract JSON-LD NewsArticle data"""
+        json_ld_scripts = soup.find_all('script', type='application/ld+json')
+        for script in json_ld_scripts:
+            try:
+                data = json.loads(script.string)
+                if data.get('@type') in ['NewsArticle', 'Article']:
+                    return data
+            except Exception as e:
+                logger.debug(f"Failed to parse JSON-LD: {e}")
+                continue
+        return None
+
+    def _create_document_from_json_ld(self, data: Dict, url: str, soup: BeautifulSoup) -> Optional[ScrapedDocument]:
+        """Create document from JSON-LD data"""
+        # Extract basic fields
+        title = data.get('headline', '')
+        if not title:
+            logger.warning(f"No title in JSON-LD for {url}")
+            return None
+
+        # Get article body
+        content = data.get('articleBody', '')
+        description = data.get('description', '')
+
+        if not content:
+            logger.warning(f"No articleBody in JSON-LD for {url}")
+            return None
+
+        # Combine description and content
+        if description and description not in content:
+            content = f"{description} {content}"
+
+        # Extract author
+        author_data = data.get('author', {})
+        if isinstance(author_data, dict):
+            author = author_data.get('name', 'Semana')
+        elif isinstance(author_data, list) and author_data:
+            author = author_data[0].get('name', 'Semana') if isinstance(author_data[0], dict) else str(author_data[0])
+        else:
+            author = str(author_data) if author_data else 'Semana'
+
+        # Extract date
+        published_str = data.get('datePublished', '')
+        published_date = None
+        if published_str:
+            try:
+                published_date = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+            except:
+                pass
+
+        if not published_date:
+            published_date = self._extract_date(soup, url)
+
+        # Extract category
+        category = self._extract_category(soup, url)
+
+        # Extract entities and analysis
+        entities = self._extract_colombian_entities(content)
+        difficulty = self._calculate_difficulty(content)
+        political_bias = self._detect_political_bias(content)
+
+        # Create document
+        doc = ScrapedDocument(
+            source=self.source_name,
+            source_type='magazine',
+            url=url,
+            title=title,
+            content=content,
+            author=author,
+            published_date=published_date,
+            metadata={
+                'category': category,
+                'entities': entities,
+                'word_count': len(content.split()),
+                'source_bias': 'center-right',
+                'political_content': political_bias,
+                'content_type': 'analysis' if 'opinion' in url else 'news',
+                'extraction_method': 'json-ld'
+            },
+            language='es',
+            difficulty_level=self._get_difficulty_level(difficulty),
+            region='Colombia',
+            categories=[category] if category else ['política']
+        )
+
+        return doc
+
+    def _extract_from_html(self, soup: BeautifulSoup, url: str) -> Optional[ScrapedDocument]:
+        """Extract content from HTML (fallback method)"""
+        # Updated selectors for current Semana structure
+        title_elem = soup.find('h1')
+        if not title_elem:
+            logger.warning(f"No title found for {url}")
+            return None
+        title = self._clean_text(title_elem.get_text())
+
+        # Find article element
+        article_elem = soup.find('article')
+        if not article_elem:
+            logger.warning(f"No article element found for {url}")
+            return None
+
+        # Extract all paragraphs from article
+        content_parts = []
+        paragraphs = article_elem.find_all('p')
+        for p in paragraphs:
+            text = self._clean_text(p.get_text())
+            if text and len(text) > 30:  # Filter short paragraphs
+                # Skip ads and promotional content
+                if not self._is_promotional_content(text):
+                    content_parts.append(text)
+
+        content = ' '.join(content_parts)
+
+        # Check content quality
+        if len(content) < 300:
+            logger.warning(f"Content too short for {url}")
+            return None
+
+        # Check for paywall
+        if self._is_paywall_content(content):
+            logger.info(f"Paywall detected for {url}")
+
+        # Extract metadata
+        author = self._extract_author(soup)
+        published_date = self._extract_date(soup, url)
+        category = self._extract_category(soup, url)
+
+        # Extract entities and analysis
+        entities = self._extract_colombian_entities(content)
+        difficulty = self._calculate_difficulty(content)
+        political_bias = self._detect_political_bias(content)
+
+        # Create document
+        doc = ScrapedDocument(
+            source=self.source_name,
+            source_type='magazine',
+            url=url,
+            title=title,
+            content=content,
+            author=author,
+            published_date=published_date,
+            metadata={
+                'category': category,
+                'entities': entities,
+                'word_count': len(content.split()),
+                'source_bias': 'center-right',
+                'political_content': political_bias,
+                'content_type': 'analysis' if 'opinion' in url else 'news',
+                'extraction_method': 'html'
+            },
+            language='es',
+            difficulty_level=self._get_difficulty_level(difficulty),
+            region='Colombia',
+            categories=[category] if category else ['política']
+        )
+
+        return doc
 
     def _is_promotional_content(self, text: str) -> bool:
         """Check if text is promotional/advertising content"""

@@ -37,16 +37,16 @@ class PortafolioScraper(SmartScraper):
             'opinion'
         ]
 
-        # CSS selectors for Portafolio's structure (similar to El Tiempo)
+        # Updated CSS selectors based on actual Portafolio.co HTML structure
         self.selectors = {
-            'article_links': '.articulo-link, .card-link, .story-link, h2 a, h3 a, .headline a',
-            'title': 'h1.titulo, h1.headline, h1.article-title, h1',
-            'subtitle': 'h2.sumario, .bajada, .dek, .article-subtitle',
-            'content': '.articulo-contenido, .article-body, .content-body, .story-body',
-            'author': '.autor-nombre, .byline, .author-name, .autor',
-            'date': '.fecha, time, .article-date, .publish-date',
-            'category': '.categoria, .section-name, .breadcrumb-item',
-            'tags': '.tags a, .article-tags a'
+            'article_links': 'article a, .article-top a, .listing_main a, .listing_secondary a, h2 a, h3 a, h4 a',
+            'title': 'h1[itemprop="headline"], h1.title, h1',
+            'subtitle': 'h2[itemprop="description"], .summary, .excerpt, .lead, .bajada, p[itemprop="description"]',
+            'content': '#articulocontenido, div[itemprop="articleBody"], .article-body, .content-body, .story-content',
+            'author': 'span[itemprop="author"], a[itemprop="author"], .author-name, .byline, .firma, .autor-nombre',
+            'date': 'time[itemprop="datePublished"], time[datetime], time, .publish-date, .date, .fecha',
+            'category': '.breadcrumb a, nav[aria-label="breadcrumb"] a, .section-name, .categoria',
+            'tags': '.tags a, .keywords a, .article-tags a'
         }
 
     def extract_article_urls(self, homepage_html: str) -> List[str]:
@@ -131,45 +131,76 @@ class PortafolioScraper(SmartScraper):
         return (has_indicator or has_id) and not should_exclude
 
     def extract_article_content(self, article_html: str, url: str) -> Optional[ScrapedDocument]:
-        """Extract content from Portafolio article"""
+        """Extract content from Portafolio article with improved error handling"""
         soup = self.parse_html(article_html)
 
         try:
-            # Extract title
+            # Extract title with fallback options
             title_elem = soup.select_one(self.selectors['title'])
             if not title_elem:
-                logger.warning(f"No title found for {url}")
+                # Fallback: try meta tags
+                title_meta = soup.find('meta', property='og:title')
+                if title_meta and title_meta.get('content'):
+                    title = self._clean_text(title_meta.get('content'))
+                else:
+                    logger.warning(f"No title found for {url}")
+                    return None
+            else:
+                title = self._clean_text(title_elem.get_text())
+
+            if not title or len(title) < 10:
+                logger.warning(f"Title too short or empty for {url}")
                 return None
-            title = self._clean_text(title_elem.get_text())
 
-            # Extract subtitle
+            # Extract subtitle with multiple fallback options
+            subtitle = ""
             subtitle_elem = soup.select_one(self.selectors['subtitle'])
-            subtitle = self._clean_text(subtitle_elem.get_text()) if subtitle_elem else ""
+            if subtitle_elem:
+                subtitle = self._clean_text(subtitle_elem.get_text())
+            else:
+                # Fallback to meta description
+                desc_meta = soup.find('meta', property='og:description')
+                if desc_meta and desc_meta.get('content'):
+                    subtitle = self._clean_text(desc_meta.get('content'))
 
-            # Extract content
+            # Extract content with improved selector logic
             content_elem = soup.select_one(self.selectors['content'])
             if not content_elem:
-                logger.warning(f"No content found for {url}")
-                return None
+                # Fallback: try to find main article container
+                content_elem = soup.find('article') or soup.find('main')
+                if not content_elem:
+                    logger.warning(f"No content container found for {url}")
+                    return None
 
-            # Process content
+            # Process content with better filtering
             content_parts = []
-            if subtitle:
+            if subtitle and len(subtitle) > 20:
                 content_parts.append(subtitle)
 
-            paragraphs = content_elem.find_all(['p', 'div'])
+            # Extract paragraphs more selectively
+            paragraphs = content_elem.find_all('p')
+            logger.debug(f"Found {len(paragraphs)} paragraphs in content element")
+
             for p in paragraphs:
+                # Skip if paragraph contains script, style, or nested elements
+                if p.find(['script', 'style', 'noscript']):
+                    continue
+
                 text = self._clean_text(p.get_text())
+
+                # More strict filtering
                 if text and len(text) > 30:
-                    # Skip promotional and advertising content
-                    if not self._is_promotional_content(text):
+                    # Skip promotional, advertising, and navigation content
+                    if not self._is_promotional_content(text) and not self._is_navigation_text(text):
                         content_parts.append(text)
 
             content = ' '.join(content_parts)
 
-            # Validate content
-            if len(content) < 250:
-                logger.warning(f"Content too short for {url}")
+            # Validate content (reduced threshold for Portafolio which has shorter articles)
+            logger.debug(f"Content length after extraction: {len(content)} chars from {len(content_parts)} parts")
+
+            if len(content) < 200:
+                logger.warning(f"Content too short for {url}: {len(content)} chars")
                 return None
 
             # Check for paywall
@@ -228,10 +259,37 @@ class PortafolioScraper(SmartScraper):
             'descarga la app',
             'síguenos',
             'invierta en',
-            'oferta especial'
+            'oferta especial',
+            'lea también',
+            'le puede interesar',
+            'más noticias',
+            'contenido relacionado'
         ]
         text_lower = text.lower()
         return any(indicator in text_lower for indicator in promo_indicators)
+
+    def _is_navigation_text(self, text: str) -> bool:
+        """Check if text is navigation or UI element text"""
+        nav_indicators = [
+            'compartir',
+            'facebook',
+            'twitter',
+            'whatsapp',
+            'comentarios',
+            'guardar',
+            'imprimir',
+            'reportar error',
+            'siguiente',
+            'anterior',
+            'volver',
+            'inicio',
+            'menú'
+        ]
+        text_lower = text.lower()
+        # Navigation text is usually short
+        if len(text) < 50:
+            return any(indicator in text_lower for indicator in nav_indicators)
+        return False
 
     def _is_paywall_content(self, content: str) -> bool:
         """Check if content is behind paywall"""
@@ -247,11 +305,30 @@ class PortafolioScraper(SmartScraper):
         return any(indicator in content_lower for indicator in paywall_indicators)
 
     def _extract_author(self, soup: BeautifulSoup) -> Optional[str]:
-        """Extract article author"""
+        """Extract article author with multiple fallback strategies"""
+        # Try structured data first (most reliable)
+        json_ld = soup.find('script', type='application/ld+json')
+        if json_ld:
+            try:
+                import json
+                data = json.loads(json_ld.string)
+                if isinstance(data, dict) and 'author' in data:
+                    author_data = data['author']
+                    if isinstance(author_data, dict) and 'name' in author_data:
+                        return self._clean_text(author_data['name'])
+                    elif isinstance(author_data, str):
+                        return self._clean_text(author_data)
+            except:
+                pass
+
+        # Try CSS selectors
         author_selectors = [
-            '.autor-nombre',
-            '.byline',
+            'span[itemprop="author"]',
+            'a[itemprop="author"]',
             '.author-name',
+            '.byline',
+            '.firma',
+            '.autor-nombre',
             '.autor',
             '.redaccion-portafolio'
         ]
@@ -262,23 +339,67 @@ class PortafolioScraper(SmartScraper):
                 author_text = self._clean_text(author_elem.get_text())
                 # Clean prefixes
                 author_text = re.sub(r'^(Por:?\s*|Redacción\s*|@)', '', author_text, flags=re.IGNORECASE)
-                if author_text and len(author_text) > 2:
+                if author_text and len(author_text) > 2 and len(author_text) < 100:
                     return author_text
+
+        # Try meta tags
+        author_meta = soup.find('meta', attrs={'name': 'author'})
+        if author_meta and author_meta.get('content'):
+            return self._clean_text(author_meta.get('content'))
 
         return "Portafolio"
 
     def _extract_date(self, soup: BeautifulSoup, url: str) -> Optional[datetime]:
-        """Extract publication date"""
-        # Try time element
-        time_elem = soup.select_one('time')
-        if time_elem and time_elem.get('datetime'):
+        """Extract publication date with multiple fallback strategies"""
+        # Try structured data first (most reliable)
+        json_ld = soup.find('script', type='application/ld+json')
+        if json_ld:
             try:
-                return datetime.fromisoformat(time_elem.get('datetime').replace('Z', '+00:00'))
+                import json
+                data = json.loads(json_ld.string)
+                if isinstance(data, dict):
+                    for date_field in ['datePublished', 'dateCreated', 'publishedDate']:
+                        if date_field in data:
+                            try:
+                                return datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                            except:
+                                pass
+            except:
+                pass
+
+        # Try time element with itemprop
+        time_elem = soup.select_one('time[itemprop="datePublished"]')
+        if not time_elem:
+            time_elem = soup.select_one('time[datetime]')
+        if not time_elem:
+            time_elem = soup.select_one('time')
+
+        if time_elem:
+            datetime_attr = time_elem.get('datetime')
+            if datetime_attr:
+                try:
+                    return datetime.fromisoformat(datetime_attr.replace('Z', '+00:00'))
+                except:
+                    pass
+            # Try text content
+            date_text = self._clean_text(time_elem.get_text())
+            if date_text:
+                parsed_date = self._parse_spanish_date(date_text)
+                if parsed_date:
+                    return parsed_date
+
+        # Try meta tags
+        meta_date = soup.find('meta', property='article:published_time')
+        if not meta_date:
+            meta_date = soup.find('meta', attrs={'name': 'publish-date'})
+        if meta_date and meta_date.get('content'):
+            try:
+                return datetime.fromisoformat(meta_date.get('content').replace('Z', '+00:00'))
             except:
                 pass
 
         # Try date selectors
-        date_selectors = ['.fecha', '.article-date', '.publish-date']
+        date_selectors = ['.fecha', '.article-date', '.publish-date', '.date']
         for selector in date_selectors:
             date_elem = soup.select_one(selector)
             if date_elem:
@@ -454,7 +575,7 @@ class PortafolioScraper(SmartScraper):
             return 'Experto'
 
     def _parse_spanish_date(self, date_text: str) -> Optional[datetime]:
-        """Parse Spanish date formats"""
+        """Parse Spanish date formats with comprehensive pattern matching"""
         months = {
             'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
             'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
@@ -463,35 +584,56 @@ class PortafolioScraper(SmartScraper):
             'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dic': 12
         }
 
-        # Date patterns
+        # Clean date text
+        date_text = date_text.lower().strip()
+
+        # Date patterns (order matters - try most specific first)
         patterns = [
-            r'(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})',  # "15 de enero de 2024"
-            r'(\w+)\s+(\d{1,2}),?\s+(\d{4})',          # "enero 15, 2024"
-            r'(\d{1,2})/(\d{1,2})/(\d{4})',            # "15/01/2024"
-            r'(\d{4})-(\d{2})-(\d{2})'                 # "2024-01-15"
+            # "28 oct 2025 - 8:55 p. m." or "28 oct 2025"
+            (r'(\d{1,2})\s+(\w+)\s+(\d{4})', 'day_month_year'),
+            # "15 de enero de 2024"
+            (r'(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})', 'day_de_month_de_year'),
+            # "enero 15, 2024"
+            (r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', 'month_day_year'),
+            # "15/01/2024"
+            (r'(\d{1,2})/(\d{1,2})/(\d{4})', 'day_month_year_slash'),
+            # "2024-01-15"
+            (r'(\d{4})-(\d{2})-(\d{2})', 'year_month_day_dash'),
         ]
 
-        for pattern in patterns:
+        for pattern, pattern_type in patterns:
             match = re.search(pattern, date_text)
             if match:
                 try:
-                    if '/' in pattern:
-                        day, month, year = match.groups()
-                        return datetime(int(year), int(month), int(day))
-                    elif '-' in pattern:
-                        year, month, day = match.groups()
-                        return datetime(int(year), int(month), int(day))
-                    else:
-                        if 'de' in pattern:
-                            day, month_name, year = match.groups()
-                            month = months.get(month_name.lower())
-                        else:
-                            month_name, day, year = match.groups()
-                            month = months.get(month_name.lower())
+                    groups = match.groups()
 
+                    if pattern_type == 'day_month_year':
+                        day, month_name, year = groups
+                        month = months.get(month_name[:3])  # Use first 3 chars for abbreviations
                         if month:
                             return datetime(int(year), month, int(day))
-                except:
+
+                    elif pattern_type == 'day_de_month_de_year':
+                        day, month_name, year = groups
+                        month = months.get(month_name)
+                        if month:
+                            return datetime(int(year), month, int(day))
+
+                    elif pattern_type == 'month_day_year':
+                        month_name, day, year = groups
+                        month = months.get(month_name)
+                        if month:
+                            return datetime(int(year), month, int(day))
+
+                    elif pattern_type == 'day_month_year_slash':
+                        day, month, year = groups
+                        return datetime(int(year), int(month), int(day))
+
+                    elif pattern_type == 'year_month_day_dash':
+                        year, month, day = groups
+                        return datetime(int(year), int(month), int(day))
+
+                except (ValueError, TypeError):
                     continue
 
         return None

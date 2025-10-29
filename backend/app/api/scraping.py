@@ -135,9 +135,10 @@ async def run_scraper(scraper_class, source_config: Dict[str, Any]):
     """Background task to run any scraper - creates its own DB session"""
     from app.database.connection import AsyncSessionLocal
 
-    async with AsyncSessionLocal() as db:
-        try:
-            async with scraper_class(source_config) as scraper:
+    # Create scraper WITH context manager to initialize session
+    async with scraper_class(source_config) as scraper:
+        async with AsyncSessionLocal() as db:
+            try:
                 articles = await scraper.scrape()
 
                 # Save to database using ORM
@@ -147,12 +148,12 @@ async def run_scraper(scraper_class, source_config: Dict[str, Any]):
                 await db.commit()
 
                 # Log success
-                print(f"Successfully scraped {len(articles)} articles from {source_config.get('name', 'Unknown')}")
+                print(f"✅ Successfully scraped {len(articles)} articles from {source_config.get('name', 'Unknown')}")
 
-        except Exception as e:
-            await db.rollback()
-            # Log error - in production, send to monitoring
-            print(f"Scraping error for {source_config.get('name', 'Unknown')}: {str(e)}")
+            except Exception as e:
+                await db.rollback()
+                # Log error - in production, send to monitoring
+                print(f"❌ Scraping error for {source_config.get('name', 'Unknown')}: {str(e)}")
 
 
 @router.get("/status")
