@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play } from 'lucide-react'
+import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play, Building2, Cloud, Shield, Globe } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
