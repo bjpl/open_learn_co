@@ -1,16 +1,21 @@
 'use client'
 
-// Phase 1: useState not used
-// import { useState } from 'react'
-import { Database, Globe, Newspaper, Building2, Cloud, Shield, Activity, CheckCircle } from 'lucide-react'
-// Phase 1: Filter icon not used
-import { RouteErrorBoundary } from '@/components/error-boundary'
-import { SearchFilter } from '@/components/filters/SearchFilter'
-import { SortControl } from '@/components/filters/SortControl'
-// Phase 1: useFilters hook not used
-// import { useFilters } from '@/lib/filters/filter-hooks'
+import { useState, useEffect } from 'react'
+import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play } from 'lucide-react'
+import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
 
-const dataSources = {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
+
+// Available scrapers configuration (what can be run)
+const availableScrapers = [
+  { name: 'El Tiempo', description: 'Colombia\'s largest newspaper', endpoint: 'El%20Tiempo' },
+  { name: 'El Espectador', description: 'National daily newspaper', endpoint: 'El%20Espectador' },
+  { name: 'Semana', description: 'Weekly news magazine', endpoint: 'Semana' },
+  { name: 'Portafolio', description: 'Business and financial newspaper', endpoint: 'Portafolio' },
+]
+
+// Informational sources (not yet implemented)
+const plannedSources = {
   'Government APIs': [
     {
       name: 'DANE',
@@ -110,50 +115,152 @@ const dataSources = {
 }
 
 export default function SourcesPage() {
-  // Phase 1: filters not used yet
-  // const { filters } = useFilters()
+  const [sourceStats, setSourceStats] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [triggering, setTriggering] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchSourceStats()
+  }, [])
+
+  const fetchSourceStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=100`)
+      const data = await response.json()
+      const items = data.items || []
+
+      // Calculate stats per source
+      const sourceMap = new Map<string, any>()
+      items.forEach((article: any) => {
+        const existing = sourceMap.get(article.source) || {
+          name: article.source,
+          articleCount: 0,
+          totalWords: 0,
+          avgDifficulty: 0,
+          lastUpdate: article.published_date
+        }
+        existing.articleCount++
+        existing.totalWords += article.word_count || 0
+        existing.avgDifficulty += article.difficulty_score || 0
+        if (new Date(article.published_date) > new Date(existing.lastUpdate)) {
+          existing.lastUpdate = article.published_date
+        }
+        sourceMap.set(article.source, existing)
+      })
+
+      const stats = Array.from(sourceMap.values()).map(stat => ({
+        ...stat,
+        avgWords: Math.round(stat.totalWords / stat.articleCount),
+        avgDifficulty: (stat.avgDifficulty / stat.articleCount).toFixed(2)
+      }))
+
+      setSourceStats(stats)
+    } catch (error) {
+      console.error('Failed to fetch source stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const triggerScraper = async (endpoint: string, name: string) => {
+    setTriggering(name)
+    try {
+      await fetch(`${API_URL}/api/scraping/trigger/${endpoint}`, { method: 'POST' })
+      setTimeout(() => {
+        fetchSourceStats()
+        setTriggering(null)
+      }, 2000)
+    } catch (error) {
+      console.error(`Failed to trigger ${name}:`, error)
+      setTriggering(null)
+    }
+  }
 
   return (
     <RouteErrorBoundary>
       <div className="space-y-8">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Sources</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Integrated data sources providing real-time Colombian information
-        </p>
-      </div>
-
-      {/* Search and Sort Controls */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex-1 min-w-[250px]">
-            <SearchFilter />
-          </div>
-          <SortControl />
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Sources</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Active scrapers and data sources for Colombian content
+          </p>
         </div>
-      </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Total Sources" value="22" icon={Database} />
-        <StatCard label="Active Sources" value="20" icon={CheckCircle} />
-        <StatCard label="APIs" value="9" icon={Globe} />
-        <StatCard label="Scrapers" value="13" icon={Newspaper} />
-      </div>
+        {/* Real Statistics from Database */}
+        <ComponentErrorBoundary>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard
+              label="Active Scrapers"
+              value={sourceStats.length.toString()}
+              icon={CheckCircle}
+            />
+            <StatCard
+              label="Total Articles"
+              value={sourceStats.reduce((sum, s) => sum + s.articleCount, 0).toString()}
+              icon={Database}
+            />
+            <StatCard
+              label="Avg Article Length"
+              value={sourceStats.length > 0
+                ? Math.round(sourceStats.reduce((sum, s) => sum + s.avgWords, 0) / sourceStats.length).toString()
+                : '0'}
+              icon={Newspaper}
+            />
+            <StatCard
+              label="Avg Complexity"
+              value={sourceStats.length > 0
+                ? (sourceStats.reduce((sum, s) => sum + parseFloat(s.avgDifficulty), 0) / sourceStats.length).toFixed(2)
+                : '0.0'}
+              icon={Activity}
+            />
+          </div>
+        </ComponentErrorBoundary>
 
-      {/* Sources by Category */}
-      {Object.entries(dataSources).map(([category, sources]) => (
-        <div key={category}>
+        {/* Active Scrapers with Real Data */}
+        <ComponentErrorBoundary>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Active News Scrapers ({sourceStats.length})
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {availableScrapers.map((scraper) => {
+                const stats = sourceStats.find(s => s.name === scraper.name)
+                const isActive = !!stats
+                return (
+                  <ActiveScraperCard
+                    key={scraper.name}
+                    {...scraper}
+                    stats={stats}
+                    isActive={isActive}
+                    onTrigger={() => triggerScraper(scraper.endpoint, scraper.name)}
+                    isTriggering={triggering === scraper.name}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        </ComponentErrorBoundary>
+
+        {/* Planned Sources (Informational) */}
+        <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            {category}
+            Planned Integrations (Coming Soon)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sources.map((source) => (
-              <SourceCard key={source.name} {...source} />
+            {Object.entries(plannedSources).map(([category, sources]: [string, any]) => (
+              <div key={category} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{category}</h3>
+                <div className="space-y-1">
+                  {sources.map((source: any) => (
+                    <div key={source.name} className="text-sm text-gray-600 dark:text-gray-400">
+                      • {source.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
-      ))}
       </div>
     </RouteErrorBoundary>
   )
@@ -173,78 +280,99 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
   )
 }
 
-function SourceCard({
+function ActiveScraperCard({
   name,
   description,
-  status,
-  type,
-  dataTypes,
-  lastSync,
-  icon: Icon,
+  endpoint,
+  stats,
+  isActive,
+  onTrigger,
+  isTriggering
 }: {
   name: string
   description: string
-  status: string
-  type: string
-  dataTypes: string[]
-  lastSync: string
-  icon: any
+  endpoint: string
+  stats?: any
+  isActive: boolean
+  onTrigger: () => void
+  isTriggering: boolean
 }) {
-  const getStatusColor = () => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-    }
+  const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Never'
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffHours < 1) return 'Just now'
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow border-2 border-transparent hover:border-yellow-500">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-start space-x-3">
           <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <Icon className="w-6 h-6 text-yellow-600 dark:text-yellow-500" />
+            <Newspaper className="w-6 h-6 text-yellow-600 dark:text-yellow-500" />
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-white">{name}</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{description}</p>
           </div>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
-          {status}
-        </span>
+        {isActive ? (
+          <div className="flex items-center space-x-1">
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">Active</span>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-1">
+            <AlertCircle className="w-5 h-5 text-gray-400" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Inactive</span>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center text-sm">
-          <span className="text-gray-500 dark:text-gray-400 w-20">Type:</span>
-          <span className="text-gray-900 dark:text-white font-medium">{type}</span>
-        </div>
-        <div className="flex items-start text-sm">
-          <span className="text-gray-500 dark:text-gray-400 w-20">Data:</span>
-          <div className="flex flex-wrap gap-1">
-            {dataTypes.map((dataType) => (
-              <span
-                key={dataType}
-                className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300"
-              >
-                {dataType}
-              </span>
-            ))}
+      {stats && (
+        <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Articles</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.articleCount}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Avg Words</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.avgWords}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Avg Difficulty</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.avgDifficulty}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Last Update</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{getTimeAgo(stats.lastUpdate)}</p>
           </div>
         </div>
-        <div className="flex items-center text-sm">
-          <span className="text-gray-500 dark:text-gray-400 w-20">Last sync:</span>
-          <span className="text-gray-900 dark:text-white">{lastSync}</span>
-        </div>
-      </div>
+      )}
 
-      <div className="mt-4 flex items-center justify-between">
-        <button className="text-sm text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium">
-          View Details →
-        </button>
-        <Activity className="w-4 h-4 text-green-500 animate-pulse" />
-      </div>
+      <button
+        onClick={onTrigger}
+        disabled={isTriggering}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {isTriggering ? (
+          <>
+            <Activity className="w-4 h-4 animate-spin" />
+            Running scraper...
+          </>
+        ) : (
+          <>
+            <Play className="w-4 h-4" />
+            Run Scraper
+          </>
+        )}
+      </button>
     </div>
   )
 }
