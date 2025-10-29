@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play, Building2, Cloud, Shield, Globe } from 'lucide-react'
+import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play, Building2, Cloud, Shield, Globe, RefreshCw, Zap } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
@@ -118,6 +118,8 @@ export default function SourcesPage() {
   const [sourceStats, setSourceStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [triggering, setTriggering] = useState<string | null>(null)
+  const [runningAll, setRunningAll] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     fetchSourceStats()
@@ -176,14 +178,61 @@ export default function SourcesPage() {
     }
   }
 
+  const runAllScrapers = async () => {
+    setRunningAll(true)
+    try {
+      // Trigger all scrapers in parallel
+      await Promise.all(
+        availableScrapers.map(scraper =>
+          fetch(`${API_URL}/api/scraping/trigger/${scraper.endpoint}`, { method: 'POST' })
+        )
+      )
+      setTimeout(() => {
+        fetchSourceStats()
+        setRunningAll(false)
+      }, 3000)
+    } catch (error) {
+      console.error('Failed to run all scrapers:', error)
+      setRunningAll(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchSourceStats()
+    setRefreshing(false)
+  }
+
   return (
     <RouteErrorBoundary>
       <div className="space-y-8">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Sources</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Active scrapers and data sources for Colombian content
-          </p>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Sources</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Active scrapers and data sources for Colombian content
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
+                onClick={runAllScrapers}
+                disabled={runningAll}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50 transition-colors shadow-md"
+              >
+                <Zap className={`w-4 h-4 ${runningAll ? 'animate-pulse' : ''}`} />
+                {runningAll ? 'Running All Scrapers...' : 'Run All Scrapers'}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Real Statistics from Database */}

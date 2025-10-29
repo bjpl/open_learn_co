@@ -1,7 +1,8 @@
 'use client'
 
-import { X, ExternalLink, Calendar, User, Hash, FileText, TrendingUp, BookOpen } from 'lucide-react'
+import { X, ExternalLink, Calendar, User, Hash, FileText, TrendingUp, BookOpen, Share2, Link2, Twitter, Facebook, Linkedin, Check } from 'lucide-react'
 import { ComponentErrorBoundary } from './error-boundary'
+import { useState } from 'react'
 
 interface Article {
   id: number
@@ -26,7 +27,35 @@ interface ArticleDetailProps {
 }
 
 export default function ArticleDetail({ article, isOpen, onClose }: ArticleDetailProps) {
+  const [copied, setCopied] = useState(false)
+
   if (!isOpen || !article) return null
+
+  const shareUrl = article.source_url || window.location.href
+  const shareTitle = article.title
+  const shareText = article.subtitle || article.title
+
+  const handleShare = (platform: string) => {
+    const urls = {
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`
+    }
+
+    if (urls[platform as keyof typeof urls]) {
+      window.open(urls[platform as keyof typeof urls], '_blank', 'width=600,height=400')
+    }
+  }
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown date'
@@ -184,6 +213,50 @@ export default function ArticleDetail({ article, isOpen, onClose }: ArticleDetai
               <div className="prose dark:prose-invert max-w-none mb-6">
                 <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
                   {article.content}
+                </div>
+              </div>
+
+              {/* Share Section */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share this article
+                  </h3>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => handleShare('twitter')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                  >
+                    <Twitter className="w-4 h-4" />
+                    Twitter
+                  </button>
+                  <button
+                    onClick={() => handleShare('facebook')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Facebook className="w-4 h-4" />
+                    Facebook
+                  </button>
+                  <button
+                    onClick={() => handleShare('linkedin')}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                    LinkedIn
+                  </button>
+                  <button
+                    onClick={handleCopyLink}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      copied
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+                    {copied ? 'Copied!' : 'Copy Link'}
+                  </button>
                 </div>
               </div>
 

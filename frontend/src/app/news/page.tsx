@@ -7,25 +7,29 @@ import { FilterPanel } from '@/components/filters/FilterPanel'
 import { SortControl } from '@/components/filters/SortControl'
 import { useFilters } from '@/lib/filters/filter-hooks'
 import ArticleDetail from '@/components/ArticleDetail'
+import Pagination from '@/components/Pagination'
+import { ArticleCardSkeleton } from '@/components/LoadingSkeletons'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
+const ITEMS_PER_PAGE = 10
 
 // NO MOCK DATA - All articles fetched from real backend API
 
 export default function NewsPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const { activeCount } = useFilters()
-  const [newsItems, setNewsItems] = useState<any[]>([])
+  const [allArticles, setAllArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     // Fetch real articles from backend
     const fetchArticles = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=50`)
+        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=100`)
         const data = await response.json()
-        setNewsItems(data.items || [])
+        setAllArticles(data.items || [])
       } catch (error) {
         console.error('Failed to fetch articles:', error)
       } finally {
@@ -34,6 +38,16 @@ export default function NewsPage() {
     }
     fetchArticles()
   }, [])
+
+  // Paginate articles
+  const totalPages = Math.ceil(allArticles.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const newsItems = allArticles.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <RouteErrorBoundary>
@@ -77,20 +91,38 @@ export default function NewsPage() {
           </div>
 
           {/* News Grid - REAL DATA */}
-          <div className="grid gap-6">
+          <div className="space-y-6">
             {loading ? (
-              <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm text-center">
-                <Database className="w-12 h-12 mx-auto mb-4 text-yellow-500 animate-pulse" />
-                <p className="text-gray-500 dark:text-gray-400">Loading real articles from database...</p>
+              <div className="grid gap-6">
+                <ArticleCardSkeleton />
+                <ArticleCardSkeleton />
+                <ArticleCardSkeleton />
+                <ArticleCardSkeleton />
+                <ArticleCardSkeleton />
               </div>
-            ) : newsItems.length > 0 ? (
-              newsItems.map((item) => (
-                <NewsCard
-                  key={item.id}
-                  article={item}
-                  onClick={() => setSelectedArticle(item)}
-                />
-              ))
+            ) : allArticles.length > 0 ? (
+              <>
+                <div className="grid gap-6">
+                  {newsItems.map((item) => (
+                    <NewsCard
+                      key={item.id}
+                      article={item}
+                      onClick={() => setSelectedArticle(item)}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={allArticles.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={handlePageChange}
+                  />
+                )}
+              </>
             ) : (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-8 text-center">
                 <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
