@@ -148,9 +148,8 @@ def get_db() -> Session:
         db.close()
 
 
-@asynccontextmanager
-async def get_async_db() -> AsyncSession:
-    """Get async database session"""
+async def get_async_db():
+    """Get async database session - FastAPI dependency"""
     async with AsyncSessionLocal() as session:
         try:
             yield session

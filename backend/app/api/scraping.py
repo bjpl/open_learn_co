@@ -114,7 +114,8 @@ async def trigger_scraping(
     # Check if scraper is implemented
     scraper_class = SCRAPER_REGISTRY.get(source_name)
     if scraper_class:
-        background_tasks.add_task(run_scraper, scraper_class, source_config, db)
+        # Don't pass db session to background task - it will create its own
+        background_tasks.add_task(run_scraper, scraper_class, source_config)
         return {
             "status": "triggered",
             "source": source_name,
@@ -130,25 +131,28 @@ async def trigger_scraping(
         }
 
 
-async def run_scraper(scraper_class, source_config: Dict[str, Any], db: AsyncSession):
-    """Background task to run any scraper"""
-    try:
-        async with scraper_class(source_config) as scraper:
-            articles = await scraper.scrape()
+async def run_scraper(scraper_class, source_config: Dict[str, Any]):
+    """Background task to run any scraper - creates its own DB session"""
+    from app.database.connection import AsyncSessionLocal
 
-            # Save to database using ORM
-            for article in articles:
-                db.add(article)
+    async with AsyncSessionLocal() as db:
+        try:
+            async with scraper_class(source_config) as scraper:
+                articles = await scraper.scrape()
 
-            await db.commit()
+                # Save to database using ORM
+                for article in articles:
+                    db.add(article)
 
-            # Log success
-            print(f"Successfully scraped {len(articles)} articles from {source_config.get('name', 'Unknown')}")
+                await db.commit()
 
-    except Exception as e:
-        await db.rollback()
-        # Log error - in production, send to monitoring
-        print(f"Scraping error for {source_config.get('name', 'Unknown')}: {str(e)}")
+                # Log success
+                print(f"Successfully scraped {len(articles)} articles from {source_config.get('name', 'Unknown')}")
+
+        except Exception as e:
+            await db.rollback()
+            # Log error - in production, send to monitoring
+            print(f"Scraping error for {source_config.get('name', 'Unknown')}: {str(e)}")
 
 
 @router.get("/status")
@@ -276,3 +280,39 @@ async def get_scraped_content(
             status_code=500,
             detail=f"Error fetching content: {str(e)}"
         )
+
+
+@router.get("/content/simple")
+async def get_content_simple(
+    limit: int = 20,
+    db: AsyncSession = Depends(get_async_db)
+) -> Dict[str, Any]:
+    """Simple content fetch without complex pagination (temporary workaround)"""
+    try:
+        # Simple query
+        query = select(ScrapedContent).order_by(ScrapedContent.published_date.desc()).limit(limit)
+        result = await db.execute(query)
+        articles = result.scalars().all()
+
+        # Convert to dict
+        articles_data = [
+            {
+                "id": article.id,
+                "source": article.source,
+                "category": article.category,
+                "title": article.title,
+                "subtitle": article.subtitle,
+                "content": article.content[:300] + "..." if len(article.content) > 300 else article.content,
+                "author": article.author,
+                "published_date": article.published_date.isoformat() if article.published_date else None,
+                "difficulty_score": article.difficulty_score
+            }
+            for article in articles
+        ]
+
+        return {
+            "items": articles_data,
+            "count": len(articles_data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
