@@ -9,6 +9,17 @@ from contextlib import asynccontextmanager
 import logging
 from typing import Dict, Any
 import os
+import sys
+
+# Add app directory to path for importing middleware
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+
+try:
+    from middleware.security_headers import SecurityHeadersMiddleware
+    SECURITY_HEADERS_AVAILABLE = True
+except ImportError:
+    logger.warning("⚠️  SecurityHeadersMiddleware not found. Security headers will not be added.")
+    SECURITY_HEADERS_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -40,18 +51,37 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
+# Add Security Headers Middleware (HSTS, CSP, X-Frame-Options, etc.)
+# This protects against XSS, clickjacking, and other attacks
+if SECURITY_HEADERS_AVAILABLE:
+    app.add_middleware(SecurityHeadersMiddleware)
+    logger.info("✅ Security headers middleware enabled")
+else:
+    logger.warning("⚠️  Security headers middleware not available - install requirements")
+
+# ⚠️  SECURITY NOTE: CORS configuration
+# In production, NEVER use wildcard ("*")! Specify exact domains only.
+# Read more: docs/SECURITY.md
+
+# Get allowed origins from environment variable or use defaults for development
+ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:3006,http://127.0.0.1:3000,http://127.0.0.1:3006"
+).split(",")
+
+# Remove wildcard in production - it's a security risk!
+# Only use wildcard in local development
+if os.getenv("ENVIRONMENT") == "production" and "*" in ALLOWED_ORIGINS:
+    logger.error("⚠️  SECURITY ERROR: Wildcard CORS is NOT allowed in production!")
+    logger.error("Set CORS_ALLOWED_ORIGINS environment variable to specific domains.")
+    raise ValueError("Wildcard CORS configuration is insecure for production")
+
+# Configure CORS with environment-based origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3006",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3006",
-        "*"  # Allow all for development
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

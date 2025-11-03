@@ -34,7 +34,7 @@ git filter-repo --path .env --invert-paths
 # 3. Replace secrets with REDACTED
 cat > /tmp/secrets.txt <<EOF
 REDACTED_SECRET_KEY==>REDACTED_SECRET_KEY
-lXXQHqXVyLelSvfLiVpD75AKMshpjCG0==>REDACTED_REDIS_PASSWORD
+REDACTED_REDIS_PASSWORD==>REDACTED_REDIS_PASSWORD
 colombian_pass==>REDACTED_DB_PASSWORD
 EOF
 

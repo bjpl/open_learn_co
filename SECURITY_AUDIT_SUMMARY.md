@@ -44,7 +44,7 @@ A comprehensive security audit has been completed on the OpenLearn Colombia plat
 pip install git-filter-repo
 git filter-repo --path .env --invert-paths
 git filter-repo --replace-text <(echo 'REDACTED_SECRET_KEY==>REDACTED_SECRET')
-git filter-repo --replace-text <(echo 'lXXQHqXVyLelSvfLiVpD75AKMshpjCG0==>REDACTED_PASSWORD')
+git filter-repo --replace-text <(echo 'REDACTED_REDIS_PASSWORD==>REDACTED_PASSWORD')
 
 # 2. Rotate ALL credentials immediately
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"  # New SECRET_KEY
