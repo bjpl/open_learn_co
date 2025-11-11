@@ -2,7 +2,11 @@
 
 ## 🎯 Overview
 
+**Status:** ACTIVE | **Deployment:** Vercel configured | **Testing:** Jest + Vitest infrastructure
+
 **OpenLearn Colombia** is a comprehensive data intelligence platform that aggregates, analyzes, and provides insights from Colombian open data sources, news media, and government APIs. Built with modern Python and React, this platform serves as a powerful tool for researchers, journalists, analysts, and citizens interested in understanding Colombia through data.
+
+**Architecture:** Monorepo structure with frontend/backend workspaces
 
 ## ✨ Key Features
 
@@ -45,6 +49,8 @@
 - Redis (optional, for caching)
 - Elasticsearch (optional, for search)
 - Node.js 18+ (for frontend)
+
+**Note:** This project uses a monorepo structure. Package.json configuration is distributed across frontend/backend workspaces.
 
 ### Installation
 
@@ -169,9 +175,12 @@ ELASTICSEARCH_URL=http://localhost:9200
 
 ## 🧪 Testing
 
+**Testing Infrastructure:** Jest + Vitest configured for comprehensive testing
+
 Run the comprehensive test suite:
 
 ```bash
+# Backend tests (Python)
 # Run all tests
 pytest
 
@@ -183,6 +192,12 @@ pytest backend/tests/test_api_clients.py
 
 # Run tests in parallel
 pytest -n auto
+
+# Frontend tests (JavaScript/TypeScript)
+# Jest and Vitest configured for unit and integration tests
+npm test                  # Run all tests
+npm run test:unit         # Unit tests
+npm run test:integration  # Integration tests
 ```
 
 ## 🤝 Contributing
@@ -232,6 +247,12 @@ We use conventional commits:
 - CORS properly configured
 - Secrets managed via environment variables
 - Regular security audits with `bandit` and `safety`
+
+## 🚀 Deployment
+
+**Deployment Platform:** Vercel (configured and ready)
+
+The project includes Vercel deployment configuration for seamless production deployment with automatic CI/CD integration.
 
 ## 📝 License
 
