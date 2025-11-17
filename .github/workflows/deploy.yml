@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload pre-deployment report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: pre-deployment-report
           path: |
@@ -135,7 +135,7 @@ jobs:
           docker save openlearn-colombia:${{ github.sha }} | gzip > openlearn-image.tar.gz
 
       - name: Upload Docker image
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: docker-image
           path: openlearn-image.tar.gz
@@ -234,7 +234,7 @@ jobs:
 
       - name: Upload smoke test report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: smoke-test-report
           path: |
@@ -275,7 +275,7 @@ jobs:
 
       - name: Upload load test report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: load-test-report
           path: |
