@@ -1,12 +1,13 @@
 name: Deploy OpenLearn Colombia
 
 on:
-  push:
-    branches:
+  # Temporarily disabled to prevent email spam
+  # push:
+    # branches:
       - main
       - develop
-  pull_request:
-    branches:
+  # pull_request:
+    # branches:
       - main
   workflow_dispatch:
     inputs:

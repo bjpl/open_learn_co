@@ -1,10 +1,12 @@
 name: Tests & Coverage
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  # Temporarily disabled to prevent email spam
+  # push:
+  workflow_dispatch:
+    # branches: [ main, develop ]
+  # pull_request:
+    # branches: [ main, develop ]
   schedule:
     # Run nightly tests at 2 AM UTC
     - cron: '0 2 * * *'
