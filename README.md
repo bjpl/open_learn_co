@@ -1,66 +1,77 @@
-# 🇨🇴 OpenLearn Colombia - Colombian Open Data Intelligence Platform
+# OpenLearn Colombia
 
-## 🎯 Overview
+A comprehensive data intelligence platform for aggregating, analyzing, and providing insights from Colombian open data sources.
 
-**Status:** ACTIVE | **Deployment:** Vercel configured | **Testing:** Jest + Vitest infrastructure
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Security](#security)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
 
-**OpenLearn Colombia** is a comprehensive data intelligence platform that aggregates, analyzes, and provides insights from Colombian open data sources, news media, and government APIs. Built with modern Python and React, this platform serves as a powerful tool for researchers, journalists, analysts, and citizens interested in understanding Colombia through data.
+## Overview
 
-**Architecture:** Monorepo structure with frontend/backend workspaces
+OpenLearn Colombia is a data intelligence platform that integrates news media scrapers, government API clients, and advanced natural language processing to provide comprehensive insights into Colombian data. Built with Python FastAPI and React, the platform serves researchers, journalists, analysts, and citizens interested in understanding Colombia through data.
 
-## ✨ Key Features
+The platform employs a monorepo architecture with dedicated frontend and backend workspaces, offering real-time data collection from over 15 news sources and 7 government APIs.
 
-### 🔍 Data Collection & Integration
-- **15+ News Media Scrapers**: Real-time collection from major Colombian news outlets (El Tiempo, El Espectador, Semana, La República, and more)
-- **7+ Government API Clients**: Direct integration with Colombian government data sources
-  - DANE (National Statistics Department)
-  - Banco de la República (Central Bank)
-  - SECOP (Public Procurement)
-  - IDEAM (Environmental Data)
-  - DNP (National Planning Department)
-  - MinHacienda (Finance Ministry)
-  - Datos.gov.co (Open Data Portal)
+## Features
 
-### 🧠 Advanced NLP Processing
-- **Colombian-specific NER**: Entity recognition optimized for Colombian names, places, and organizations
-- **Sentiment Analysis**: Track public opinion and media sentiment on key topics
-- **Topic Modeling**: Automatic categorization and trend detection
-- **Difficulty Scoring**: Content complexity assessment for educational purposes
-- **Vocabulary Extraction**: Build domain-specific glossaries from Colombian content
+### Data Collection and Integration
 
-### 📊 Data Analysis & Visualization
+- Real-time collection from 15 major Colombian news outlets including El Tiempo, El Espectador, Semana, and La República
+- Direct integration with 7 government data sources: DANE, Banco de la República, SECOP, IDEAM, DNP, MinHacienda, and Datos.gov.co
+- Automated web scraping with rate limiting and error handling
+- Robust caching system for optimal performance
+
+### Natural Language Processing
+
+- Colombian-specific named entity recognition optimized for local names, places, and organizations
+- Sentiment analysis for tracking public opinion and media sentiment
+- Topic modeling with automatic categorization and trend detection
+- Content difficulty scoring for educational assessment
+- Domain-specific vocabulary extraction from Colombian content
+
+### Data Analysis and Visualization
+
 - Real-time dashboards for monitoring news and data trends
 - Cross-source correlation and fact-checking capabilities
 - Time-series analysis of economic and social indicators
 - Geographic mapping of regional data and events
 
-### 🔐 Enterprise Features
-- Rate-limited API clients with retry logic and error handling
-- Robust caching system for optimal performance
+### Enterprise Features
+
+- Rate-limited API clients with retry logic
 - Comprehensive test suite with 95%+ coverage
 - Production-ready configuration management
-- Security-first design with authentication and authorization
+- Authentication and authorization security
 
-## 🚀 Quick Start
+## Installation
 
 ### Prerequisites
-- Python 3.9+
-- PostgreSQL 14+
+
+- Python 3.9 or higher
+- PostgreSQL 14 or higher
+- Node.js 18 or higher
 - Redis (optional, for caching)
 - Elasticsearch (optional, for search)
-- Node.js 18+ (for frontend)
 
-**Note:** This project uses a monorepo structure. Package.json configuration is distributed across frontend/backend workspaces.
+### Setup
 
-### Installation
-
-1. **Clone the repository**
+Clone the repository:
 ```bash
 git clone https://github.com/bjpl/open_learn_co.git
 cd open_learn_co
 ```
 
-2. **Set up the backend**
+Set up the backend:
 ```bash
 cd backend
 python -m venv venv
@@ -68,119 +79,81 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. **Configure environment variables**
+Configure environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with configuration settings
 ```
 
-4. **Initialize the database**
+Initialize the database:
 ```bash
 python -m alembic upgrade head
 ```
 
-5. **Start the backend server**
+Start the backend server:
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-6. **Set up the frontend** (in a new terminal)
+Set up the frontend:
 ```bash
 cd frontend
 npm install
 npm start
 ```
 
-7. **Access the application**
+Access the application:
 - Backend API: http://localhost:8000
 - Frontend Dashboard: http://localhost:3000
 - API Documentation: http://localhost:8000/docs
 
-## 📁 Project Structure
+## Usage
+
+The platform provides access through a RESTful API and web-based dashboard interface. API endpoints allow programmatic access to collected data, analysis results, and trending topics. The dashboard provides visual interfaces for exploring data sources, monitoring trends, and analyzing content.
+
+## Project Structure
 
 ```
 open_learn_co/
-│
 ├── backend/                    # Python FastAPI backend
 │   ├── app/                   # Main application
 │   │   ├── api/              # API endpoints
 │   │   ├── config.py         # Configuration management
 │   │   ├── database/         # Database models and connections
 │   │   └── main.py           # FastAPI application
-│   │
 │   ├── api_clients/           # Government API integrations
 │   │   ├── base/             # Base client with rate limiting
 │   │   └── clients/          # Specific API implementations
-│   │
 │   ├── scrapers/              # News media scrapers
 │   │   ├── base/             # Smart scraper base classes
 │   │   └── sources/          # Media-specific scrapers
-│   │
 │   ├── nlp/                   # Natural Language Processing
 │   │   ├── colombian_ner.py  # Entity recognition
 │   │   ├── sentiment_analyzer.py
 │   │   ├── topic_modeler.py
 │   │   └── pipeline.py       # Processing pipeline
-│   │
 │   ├── services/              # Business logic services
 │   └── tests/                 # Comprehensive test suite
-│
 ├── frontend/                   # React frontend application
 │   ├── public/
 │   └── src/
-│
 └── docs/                      # Documentation and guides
 ```
 
-## 🔧 Configuration
+## Development
 
-The platform uses environment variables for configuration. Key settings include:
+### Backend Development
 
-```env
-# Application
-APP_NAME=OpenLearn Colombia
-ENVIRONMENT=development
-DEBUG=true
+The backend uses FastAPI with asynchronous request handling for optimal performance. Database models are managed with SQLAlchemy, and migrations are handled through Alembic.
 
-# Database
-DATABASE_URL=postgresql://user:password@localhost/openlearn_co
+### Frontend Development
 
-# Security
-SECRET_KEY=your-secret-key-here
+The React frontend provides interactive dashboards and visualization components. Development follows modern React patterns with hooks and functional components.
 
-# APIs (Optional - add your keys)
-DANE_API_KEY=
-BANREP_API_KEY=
+### Running Tests
 
-# Services
-REDIS_URL=redis://localhost:6379
-ELASTICSEARCH_URL=http://localhost:9200
-```
-
-## 📊 API Endpoints
-
-### Core Endpoints
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/sources` - List available data sources
-- `GET /api/v1/articles` - Retrieve news articles
-- `GET /api/v1/data/{source}` - Get data from specific source
-- `POST /api/v1/analyze` - Analyze text or documents
-- `GET /api/v1/trends` - Current trending topics
-
-### Government Data APIs
-- `/api/v1/dane/` - National statistics data
-- `/api/v1/banrep/` - Central bank indicators
-- `/api/v1/secop/` - Public procurement data
-- `/api/v1/ideam/` - Environmental data
-
-## 🧪 Testing
-
-**Testing Infrastructure:** Jest + Vitest configured for comprehensive testing
-
-Run the comprehensive test suite:
-
+Backend tests with Python:
 ```bash
-# Backend tests (Python)
 # Run all tests
 pytest
 
@@ -192,26 +165,61 @@ pytest backend/tests/test_api_clients.py
 
 # Run tests in parallel
 pytest -n auto
+```
 
-# Frontend tests (JavaScript/TypeScript)
-# Jest and Vitest configured for unit and integration tests
+Frontend tests with Jest and Vitest:
+```bash
 npm test                  # Run all tests
 npm run test:unit         # Unit tests
 npm run test:integration  # Integration tests
 ```
 
-## 🤝 Contributing
+## API Documentation
 
-We welcome contributions! Please follow these steps:
+### Core Endpoints
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- `GET /api/v1/health` - Health check
+- `GET /api/v1/sources` - List available data sources
+- `GET /api/v1/articles` - Retrieve news articles
+- `GET /api/v1/data/{source}` - Get data from specific source
+- `POST /api/v1/analyze` - Analyze text or documents
+- `GET /api/v1/trends` - Current trending topics
 
-### Commit Convention
-We use conventional commits:
+### Government Data APIs
+
+- `/api/v1/dane/` - National statistics data
+- `/api/v1/banrep/` - Central bank indicators
+- `/api/v1/secop/` - Public procurement data
+- `/api/v1/ideam/` - Environmental data
+
+Complete API documentation is available at the `/docs` endpoint when running the backend server.
+
+## Testing
+
+The project maintains a comprehensive test suite with 95%+ coverage. Tests include unit tests for individual components, integration tests for API endpoints, and end-to-end tests for critical workflows.
+
+Testing infrastructure uses Jest and Vitest for the frontend, and pytest for the backend, ensuring code quality and reliability across both platforms.
+
+## Security
+
+Security measures include:
+
+- Authentication required for all API endpoints except public health checks
+- Rate limiting on external API calls
+- SQL injection protection via parameterized queries
+- XSS protection in frontend components
+- Properly configured CORS policies
+- Environment variable management for secrets
+- Regular security audits with bandit and safety tools
+
+## Deployment
+
+The project is configured for deployment on Vercel with automatic CI/CD integration. Production deployment includes automated testing, build optimization, and environment configuration management.
+
+## Contributing
+
+Contributions are welcome. Please follow the conventional commit format:
+
 - `feat:` New features
 - `fix:` Bug fixes
 - `docs:` Documentation updates
@@ -219,64 +227,8 @@ We use conventional commits:
 - `refactor:` Code refactoring
 - `perf:` Performance improvements
 
-## 📈 Data Sources
+Submit pull requests with clear descriptions of proposed changes.
 
-### News Media Partners
-- **National Media**: El Tiempo, El Espectador, Semana, La República
-- **Business Press**: Portafolio, Dinero, La República
-- **Regional Media**: El Colombiano, El País, El Heraldo, El Universal
-- **Digital Media**: Pulzo, La Silla Vacía, Razón Pública
-- **Radio**: La FM, Blu Radio
-- **Fact-Checking**: Colombia Check
+## License
 
-### Government Data Sources
-- **DANE**: Demographics, economy, social indicators
-- **Banco de la República**: Monetary policy, exchange rates, inflation
-- **SECOP**: Public contracts and procurement
-- **IDEAM**: Weather, climate, environmental data
-- **DNP**: Development plans, public investment
-- **MinHacienda**: Budget, fiscal data
-- **Datos.gov.co**: Unified open data portal
-
-## 🔒 Security
-
-- All API endpoints require authentication (except public health checks)
-- Rate limiting implemented on all external API calls
-- SQL injection protection via parameterized queries
-- XSS protection in frontend
-- CORS properly configured
-- Secrets managed via environment variables
-- Regular security audits with `bandit` and `safety`
-
-## 🚀 Deployment
-
-**Deployment Platform:** Vercel (configured and ready)
-
-The project includes Vercel deployment configuration for seamless production deployment with automatic CI/CD integration.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Colombian government agencies for providing open data APIs
-- News media organizations for public access to content
-- Open source community for the amazing tools and libraries
-
-## 📧 Contact
-
-- **Repository**: [https://github.com/bjpl/open_learn_co](https://github.com/bjpl/open_learn_co)
-- **Issues**: [GitHub Issues](https://github.com/bjpl/open_learn_co/issues)
-
-## 🚦 Project Status
-
-![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
-![React](https://img.shields.io/badge/React-18+-blue.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
-![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)
-
----
-
-**Built with ❤️ for Colombia's data transparency and civic engagement**
+This project is available under the MIT License. See LICENSE file for details.
