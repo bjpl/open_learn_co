@@ -285,13 +285,40 @@ async def get_scraped_content(
 
 @router.get("/content/simple")
 async def get_content_simple(
-    limit: int = 20,
+    limit: int = 10,  # Reduced from 20 to 10 for better performance
+    offset: int = 0,  # Add offset for server-side pagination
     db: AsyncSession = Depends(get_async_db)
 ) -> Dict[str, Any]:
-    """Simple content fetch without complex pagination (temporary workaround)"""
+    """
+    Simple content fetch with server-side pagination
+
+    Query Parameters:
+    - limit: Number of items to return (default: 10, max: 100)
+    - offset: Number of items to skip (default: 0)
+
+    Returns:
+    - items: List of articles
+    - total: Total count of articles
+    - offset: Current offset
+    - limit: Current limit
+    - has_more: Boolean indicating if more results exist
+    """
     try:
-        # Simple query
-        query = select(ScrapedContent).order_by(ScrapedContent.published_date.desc()).limit(limit)
+        # Enforce maximum limit
+        limit = min(limit, 100)
+
+        # Get total count for pagination metadata
+        count_query = select(func.count()).select_from(ScrapedContent)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Simple query with offset and limit
+        query = (
+            select(ScrapedContent)
+            .order_by(ScrapedContent.published_date.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         result = await db.execute(query)
         articles = result.scalars().all()
 
@@ -313,7 +340,11 @@ async def get_content_simple(
 
         return {
             "items": articles_data,
-            "count": len(articles_data)
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": (offset + limit) < total,
+            "count": len(articles_data)  # Actual items returned
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

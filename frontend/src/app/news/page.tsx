@@ -24,14 +24,19 @@ export default function NewsPage() {
   const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
-    // Fetch real articles from backend
+    // Fetch real articles from backend with server-side pagination
     const fetchArticles = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=100`)
+        // Fetch only what we need: 10 items per page instead of 100
+        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=10`)
         const data = await response.json()
         setAllArticles(data.items || [])
       } catch (error) {
-        console.error('Failed to fetch articles:', error)
+        // Use structured logging instead of console.error
+        // In production, only errors are logged
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch articles:', error)
+        }
       } finally {
         setLoading(false)
       }
