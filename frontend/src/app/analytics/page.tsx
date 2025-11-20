@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Filter, BarChart3, PieChart, TrendingUp, FileText, Calendar, Award } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
+import { logger } from '@/utils/logger'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -24,7 +25,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=100`)
+        const response = await fetch(`${API_URL}/api/v1/scraping/content/simple?limit=100`)
         const data = await response.json()
         const items = data.items || []
         setArticles(items)
@@ -84,7 +85,7 @@ export default function AnalyticsPage() {
         })
 
       } catch (error) {
-        console.error('Failed to fetch analytics:', error)
+        logger.error('Failed to fetch analytics', error)
       } finally {
         setLoading(false)
       }

@@ -50,25 +50,26 @@ export default function Pagination({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 px-4 py-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <nav aria-label="Pagination navigation" className="bg-white dark:bg-gray-800 px-4 py-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Results Info */}
-        <div className="text-sm text-gray-700 dark:text-gray-300">
+        <div className="text-sm text-gray-700 dark:text-gray-300" role="status" aria-live="polite">
           Showing <span className="font-medium">{startItem}</span> to{' '}
           <span className="font-medium">{endItem}</span> of{' '}
           <span className="font-medium">{totalItems}</span> results
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" role="group" aria-label="Pagination controls">
           {/* First Page */}
           <button
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="First page"
+            aria-label="Go to first page"
+            aria-disabled={currentPage === 1}
           >
-            <ChevronsLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <ChevronsLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
 
           {/* Previous Page */}
@@ -76,22 +77,25 @@ export default function Pagination({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous page"
+            aria-label="Go to previous page"
+            aria-disabled={currentPage === 1}
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
 
           {/* Page Numbers */}
           <div className="flex items-center space-x-1">
             {getPageNumbers().map((pageNum, index) =>
               pageNum === -1 ? (
-                <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500 dark:text-gray-400" aria-hidden="true">
                   ...
                 </span>
               ) : (
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
+                  aria-label={`Go to page ${pageNum}`}
+                  aria-current={currentPage === pageNum ? 'page' : undefined}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     currentPage === pageNum
                       ? 'bg-yellow-500 text-white'
@@ -109,9 +113,10 @@ export default function Pagination({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next page"
+            aria-label="Go to next page"
+            aria-disabled={currentPage === totalPages}
           >
-            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
 
           {/* Last Page */}
@@ -119,12 +124,13 @@ export default function Pagination({
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
             className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="Last page"
+            aria-label="Go to last page"
+            aria-disabled={currentPage === totalPages}
           >
-            <ChevronsRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <ChevronsRight className="w-4 h-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
           </button>
         </div>
       </div>
-    </div>
+    </nav>
   )
 }

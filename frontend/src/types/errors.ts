@@ -3,6 +3,8 @@
  * Provides typed error handling across the application
  */
 
+import { logger } from '@/utils/logger'
+
 export class APIError extends Error {
   constructor(
     message: string,
@@ -95,7 +97,7 @@ export interface ErrorReporter {
  */
 export class ConsoleErrorReporter implements ErrorReporter {
   report(error: Error, context?: Record<string, unknown>): void {
-    console.error('[Error Reporter]', {
+    logger.error('[Error Reporter]', {
       name: error.name,
       message: error.message,
       stack: error.stack,
@@ -105,7 +107,7 @@ export class ConsoleErrorReporter implements ErrorReporter {
   }
 
   setUser(userId: string, userInfo?: Record<string, unknown>): void {
-    console.log('[Error Reporter] User set:', { userId, ...userInfo });
+    logger.info('[Error Reporter] User set:', { userId, ...userInfo });
   }
 }
 

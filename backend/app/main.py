@@ -91,7 +91,10 @@ app = FastAPI(
     title="Colombia Intelligence & Language Learning Platform",
     description="OSINT aggregation and Spanish language acquisition for Colombian content",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/api/v1/docs",
+    redoc_url="/api/v1/redoc",
+    openapi_url="/api/v1/openapi.json"
 )
 
 # ⚠️ CRITICAL: CORS MUST BE FIRST MIDDLEWARE!
@@ -135,21 +138,54 @@ app.add_middleware(
     fail_open=True  # Allow requests if Redis unavailable
 )
 
-# Include routers
-app.include_router(health.router, tags=["Health Checks"])  # Health checks at root level
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(avatar.router, tags=["Avatar Upload"])  # Avatar upload with built-in prefix
-app.include_router(scraping.router, prefix="/api/scraping", tags=["Web Scraping"])
-app.include_router(analysis.router, prefix="/api/analysis", tags=["Intelligence Analysis"])
-app.include_router(preferences.router, tags=["User Preferences"])
+# ============================================================================
+# API Version 1 Router
+# ============================================================================
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# Create API v1 router
+api_v1_router = APIRouter()
+
+# Include all routers under /api/v1
+api_v1_router.include_router(health.router, tags=["Health Checks"])
+api_v1_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_v1_router.include_router(avatar.router, tags=["Avatar Upload"])
+api_v1_router.include_router(scraping.router, prefix="/scraping", tags=["Web Scraping"])
+api_v1_router.include_router(analysis.router, prefix="/analysis", tags=["Intelligence Analysis"])
+api_v1_router.include_router(preferences.router, tags=["User Preferences"])
 # PHASE 1: Disabled features - will enable in Phases 2-3
-# app.include_router(analysis_batch.router, prefix="/api", tags=["Batch Analysis"])
-# app.include_router(language.router, prefix="/api/language", tags=["Language Learning"])
-# app.include_router(scheduler.router, prefix="/api/scheduler", tags=["Task Scheduler"])
-# app.include_router(cache_admin.router, prefix="/api", tags=["Cache Administration"])
-# app.include_router(search.router, prefix="/api", tags=["Search"])
-# app.include_router(export.router, prefix="/api", tags=["Data Export"])
-# app.include_router(notifications.router, prefix="/api", tags=["Notifications"])
+# api_v1_router.include_router(analysis_batch.router, tags=["Batch Analysis"])
+# api_v1_router.include_router(language.router, prefix="/language", tags=["Language Learning"])
+# api_v1_router.include_router(scheduler.router, prefix="/scheduler", tags=["Task Scheduler"])
+# api_v1_router.include_router(cache_admin.router, tags=["Cache Administration"])
+# api_v1_router.include_router(search.router, tags=["Search"])
+# api_v1_router.include_router(export.router, tags=["Data Export"])
+# api_v1_router.include_router(notifications.router, tags=["Notifications"])
+
+# Mount v1 router
+app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+
+# ============================================================================
+# API Version Header Middleware
+# ============================================================================
+class APIVersionMiddleware(BaseHTTPMiddleware):
+    """Add X-API-Version header to all responses"""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-API-Version"] = "1.0.0"
+        return response
+
+app.add_middleware(APIVersionMiddleware)
+
+# ============================================================================
+# Backward Compatibility - Redirect /api/* to /api/v1/*
+# ============================================================================
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"], include_in_schema=False)
+async def redirect_to_v1(path: str):
+    """Redirect legacy /api/* endpoints to /api/v1/* for backward compatibility"""
+    return RedirectResponse(url=f"/api/v1/{path}", status_code=301)
 
 
 @app.get("/")
@@ -158,22 +194,28 @@ async def root() -> Dict[str, Any]:
     return {
         "platform": "Colombia Intelligence & Language Learning",
         "version": "1.0.0",
+        "api_version": "v1",
         "status": "operational",
         "endpoints": {
             "docs": "/docs",
-            "scraping": "/api/scraping",
-            "analysis": "/api/analysis",
-            "batch_analysis": "/api/batch-analysis",
-            "language": "/api/language",
-            "search": "/api/search",
-            "export": "/api/export"
+            "api_v1": "/api/v1",
+            "scraping": "/api/v1/scraping",
+            "analysis": "/api/v1/analysis",
+            "auth": "/api/v1/auth",
+            "health": "/api/v1/health",
+            "preferences": "/api/v1/preferences"
         },
         "features": {
+            "api_versioning": "v1 API with backward compatibility",
             "batch_processing": "10x+ performance improvement for bulk NLP tasks",
             "job_queue": "Async processing with priority support",
             "result_caching": "Automatic caching for duplicate texts",
             "data_export": "CSV, JSON, PDF, Excel export with async job processing",
             "full_text_search": "Elasticsearch-powered search with advanced filters"
+        },
+        "notes": {
+            "backward_compatibility": "Legacy /api/* endpoints redirect to /api/v1/* with 301 status",
+            "version_header": "All responses include X-API-Version header"
         }
     }
 

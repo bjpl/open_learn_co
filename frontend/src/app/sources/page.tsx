@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Database, Newspaper, Activity, CheckCircle, AlertCircle, Play, Building2, Cloud, Shield, Globe, RefreshCw, Zap } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
+import { logger } from '@/utils/logger'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -127,7 +128,7 @@ export default function SourcesPage() {
 
   const fetchSourceStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/scraping/content/simple?limit=100`)
+      const response = await fetch(`${API_URL}/api/v1/scraping/content/simple?limit=100`)
       const data = await response.json()
       const items = data.items || []
 
@@ -158,7 +159,7 @@ export default function SourcesPage() {
 
       setSourceStats(stats)
     } catch (error) {
-      console.error('Failed to fetch source stats:', error)
+      logger.error('Failed to fetch source stats', error)
     } finally {
       setLoading(false)
     }
@@ -167,13 +168,13 @@ export default function SourcesPage() {
   const triggerScraper = async (endpoint: string, name: string) => {
     setTriggering(name)
     try {
-      await fetch(`${API_URL}/api/scraping/trigger/${endpoint}`, { method: 'POST' })
+      await fetch(`${API_URL}/api/v1/scraping/trigger/${endpoint}`, { method: 'POST' })
       setTimeout(() => {
         fetchSourceStats()
         setTriggering(null)
       }, 2000)
     } catch (error) {
-      console.error(`Failed to trigger ${name}:`, error)
+      logger.error(`Failed to trigger ${name}`, error)
       setTriggering(null)
     }
   }
@@ -184,7 +185,7 @@ export default function SourcesPage() {
       // Trigger all scrapers in parallel
       await Promise.all(
         availableScrapers.map(scraper =>
-          fetch(`${API_URL}/api/scraping/trigger/${scraper.endpoint}`, { method: 'POST' })
+          fetch(`${API_URL}/api/v1/scraping/trigger/${scraper.endpoint}`, { method: 'POST' })
         )
       )
       setTimeout(() => {
@@ -192,7 +193,7 @@ export default function SourcesPage() {
         setRunningAll(false)
       }, 3000)
     } catch (error) {
-      console.error('Failed to run all scrapers:', error)
+      logger.error('Failed to run all scrapers', error)
       setRunningAll(false)
     }
   }

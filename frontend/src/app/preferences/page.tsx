@@ -16,6 +16,7 @@ import { PrivacyPreferences } from '@/components/preferences/PrivacyPreferences'
 import { DataManagement } from '@/components/preferences/DataManagement'
 import { RouteErrorBoundary } from '@/components/error-boundary'
 import { useUserId, useIsAuthenticated } from '@/hooks/useAuth'
+import { logger } from '@/utils/logger'
 // Phase 1: useCurrentUser not needed yet
 
 type Tab = 'profile' | 'notifications' | 'display' | 'learning' | 'privacy' | 'data'
@@ -77,7 +78,7 @@ function PreferencesContent() {
       setSaveStatus('success')
       setTimeout(() => setSaveStatus('idle'), 3000)
     } catch (error) {
-      console.error('Failed to save preferences:', error)
+      logger.error('Failed to save preferences', error)
       setSaveStatus('error')
     }
   }

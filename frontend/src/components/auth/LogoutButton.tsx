@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/use-auth';
+import { logger } from '@/utils/logger';
 
 interface LogoutButtonProps {
   className?: string;
@@ -36,7 +37,7 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
       await logout();
       router.push('/login');
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error', error);
     } finally {
       setIsLoggingOut(false);
     }

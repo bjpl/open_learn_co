@@ -6,6 +6,7 @@
 'use client'
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
+import { logger } from '@/utils/logger'
 
 export interface User {
   id: number
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Verify token and get user info
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/v1/auth/me', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem('refresh_token')
         }
       } catch (err) {
-        console.error('Failed to load user:', err)
+        logger.error('Failed to load user', err)
         setError('Failed to load user session')
       } finally {
         setIsLoading(false)
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append('username', email) // OAuth2 spec uses 'username' field
       formData.append('password', password)
 
-      const response = await fetch('/api/auth/token', {
+      const response = await fetch('/api/v1/auth/token', {
         method: 'POST',
         body: formData
       })
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('access_token')
       if (token) {
         // Call logout endpoint to invalidate refresh token
-        await fetch('/api/auth/logout', {
+        await fetch('/api/v1/auth/logout', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -123,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
       }
     } catch (err) {
-      console.error('Logout error:', err)
+      logger.error('Logout error', err)
     } finally {
       // Clear local state regardless of API call success
       localStorage.removeItem('access_token')
@@ -138,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('access_token')
       if (!token) return
 
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/v1/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -149,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData)
       }
     } catch (err) {
-      console.error('Failed to refresh user:', err)
+      logger.error('Failed to refresh user', err)
     }
   }
 

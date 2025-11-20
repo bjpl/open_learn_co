@@ -8,6 +8,7 @@
 import React, { Component, ReactNode } from 'react';
 import { ErrorFallback, CompactErrorFallback } from './error-fallback';
 import { errorReporter } from '@/types/errors';
+import { logger } from '@/utils/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -46,7 +47,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // Log error to error reporting service
-    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+    logger.error('[ErrorBoundary] Caught error', error, errorInfo);
 
     // Report to external service (Sentry, etc.)
     errorReporter.report(error, {
@@ -97,7 +98,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
  */
 export function useErrorHandler(): (error: Error) => void {
   return React.useCallback((error: Error) => {
-    console.error('[useErrorHandler] Error thrown:', error);
+    logger.error('[useErrorHandler] Error thrown', error);
     errorReporter.report(error, {
       handler: 'useErrorHandler',
     });
@@ -130,7 +131,7 @@ export function RouteErrorBoundary({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        console.error('[RouteErrorBoundary] Route error:', {
+        logger.error('[RouteErrorBoundary] Route error', {
           error: error.message,
           stack: error.stack,
           componentStack: errorInfo.componentStack,
@@ -148,7 +149,7 @@ export function RouteErrorBoundary({ children }: { children: ReactNode }) {
 export function ComponentErrorBoundary({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary compact onError={(error) => {
-      console.warn('[ComponentErrorBoundary] Component error:', error.message);
+      logger.warn('[ComponentErrorBoundary] Component error', error.message);
     }}>
       {children}
     </ErrorBoundary>

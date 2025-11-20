@@ -21,7 +21,7 @@ from ..utils.security.image_validator import ImageValidationError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/avatars", tags=["avatars"])
+router = APIRouter(prefix="/avatars", tags=["avatars"])
 
 
 # ============================================================================
