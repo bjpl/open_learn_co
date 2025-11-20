@@ -51,12 +51,10 @@ export function DataManagement() {
 
     setIsClearingProgress(true)
     try {
-      const token = localStorage.getItem('access_token')
+      // Cookie is automatically sent with request (credentials: 'include')
       const response = await fetch('/api/v1/users/me/progress', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'  // Send httpOnly cookies
       })
 
       if (!response.ok) {
@@ -95,12 +93,10 @@ export function DataManagement() {
 
     setIsDeleting(true)
     try {
-      const token = localStorage.getItem('access_token')
+      // Cookie is automatically sent with request (credentials: 'include')
       const response = await fetch('/api/v1/users/me/account', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'  // Send httpOnly cookies
       })
 
       if (!response.ok) {
@@ -114,7 +110,7 @@ export function DataManagement() {
       await logout()
       window.location.href = '/'
     } catch (error) {
-      console.error('Failed to delete account:', error)
+      logger.error('Failed to delete account', error)
       alert('Failed to delete account. Please try again or contact support.')
     } finally {
       setIsDeleting(false)

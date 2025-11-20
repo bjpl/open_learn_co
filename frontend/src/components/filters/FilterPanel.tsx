@@ -145,7 +145,7 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
           <DifficultyFilter />
         </FilterSection>
       </div>
-    </div>
+    </aside>
   );
 }
 

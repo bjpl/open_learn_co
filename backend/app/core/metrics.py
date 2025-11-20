@@ -149,6 +149,32 @@ nlp_documents_processed = Counter(
 )
 
 # ============================================================================
+# Cache Metrics
+# ============================================================================
+
+cache_hit_counter = Counter(
+    'cache_hits_total',
+    'Total cache hits',
+    ['layer'],
+    registry=registry
+)
+
+cache_miss_counter = Counter(
+    'cache_misses_total',
+    'Total cache misses',
+    ['layer'],
+    registry=registry
+)
+
+cache_operation_duration_seconds = Histogram(
+    'cache_operation_duration_seconds',
+    'Cache operation duration in seconds',
+    ['operation', 'layer'],
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5),
+    registry=registry
+)
+
+# ============================================================================
 # Task Queue Metrics
 # ============================================================================
 

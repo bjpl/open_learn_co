@@ -39,31 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user
 
-  // Load user from localStorage on mount
+  // Check if user is authenticated on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-          setIsLoading(false)
-          return
-        }
-
-        // Verify token and get user info
+        // Try to get user info - cookie will be sent automatically
+        // If no cookie exists, server will return 401
         const response = await fetch('/api/v1/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'  // Send cookies (including access_token)
         })
 
         if (response.ok) {
           const userData = await response.json()
           setUser(userData)
-        } else {
-          // Token invalid, clear it
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
         }
+        // If 401, user is not authenticated (no valid cookie)
+        // This is normal - user just needs to log in
       } catch (err) {
         logger.error('Failed to load user', err)
         setError('Failed to load user session')
@@ -86,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const response = await fetch('/api/v1/auth/token', {
         method: 'POST',
+        credentials: 'include',  // CRITICAL: Send cookies with request
         body: formData
       })
 
@@ -96,11 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json()
 
-      // Store tokens
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('refresh_token', data.refresh_token)
+      // SECURITY: Tokens are now in httpOnly cookies (not accessible via JS)
+      // No localStorage storage needed - prevents XSS attacks!
+      // Cookies are automatically sent with subsequent requests
 
-      // Set user
+      // Set user from response
       setUser(data.user)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed'
@@ -113,22 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        // Call logout endpoint to invalidate refresh token
-        await fetch('/api/v1/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      }
+      // Call logout endpoint to invalidate refresh token and clear cookies
+      // Cookies are automatically sent with the request (credentials: 'include')
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        credentials: 'include'  // Send cookies (including access_token)
+      })
     } catch (err) {
       logger.error('Logout error', err)
     } finally {
-      // Clear local state regardless of API call success
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      // Clear local state
+      // No localStorage to clear - tokens are in httpOnly cookies
+      // Server clears cookies automatically
       setUser(null)
       setError(null)
     }
@@ -136,13 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) return
-
+      // Cookies are automatically sent with the request
       const response = await fetch('/api/v1/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'  // Send cookies (including access_token)
       })
 
       if (response.ok) {

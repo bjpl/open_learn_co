@@ -17,6 +17,7 @@ Performance Targets:
 import json
 import hashlib
 import asyncio
+import time
 from typing import Any, Optional, Union, Callable, Dict, List
 from datetime import timedelta
 from functools import wraps
@@ -26,6 +27,14 @@ from redis.asyncio import Redis
 from loguru import logger
 
 from app.config.settings import settings
+
+# Import metrics - use try/except for graceful degradation
+try:
+    from app.core.metrics import cache_hit_counter, cache_miss_counter, cache_operation_duration_seconds
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    logger.warning("Metrics module not available - cache metrics will not be tracked")
 
 
 class CacheManager:
@@ -47,6 +56,8 @@ class CacheManager:
         "article": {"ttl": 3600, "namespace": "article"},  # 1 hour
         "source": {"ttl": 7200, "namespace": "source"},  # 2 hours
         "analytics": {"ttl": 1800, "namespace": "analytics"},  # 30 minutes
+        "metadata": {"ttl": 1800, "namespace": "metadata"},  # 30 minutes
+        "content": {"ttl": 900, "namespace": "content"},  # 15 minutes
 
         # L2: External API Responses (medium-lived)
         "api_government": {"ttl": 21600, "namespace": "api:gov"},  # 6 hours
@@ -303,10 +314,21 @@ class CacheManager:
         Returns:
             Cached or fetched value
         """
+        start_time = time.time()
+
         # Try cache first
         cached = await self.get(layer, identifier, **params)
         if cached is not None:
+            # Track cache hit
+            if METRICS_AVAILABLE:
+                cache_hit_counter.labels(layer=layer).inc()
+                duration = time.time() - start_time
+                cache_operation_duration_seconds.labels(operation="get", layer=layer).observe(duration)
             return cached
+
+        # Track cache miss
+        if METRICS_AVAILABLE:
+            cache_miss_counter.labels(layer=layer).inc()
 
         # Cache miss - use distributed lock to prevent stampede
         lock_key = f"{self._lock_prefix}{layer}:{identifier}"
@@ -324,7 +346,14 @@ class CacheManager:
                 # We got the lock - fetch data
                 try:
                     value = await fetch_func()
+                    set_start = time.time()
                     await self.set(layer, identifier, value, ttl, **params)
+
+                    # Track cache set operation
+                    if METRICS_AVAILABLE:
+                        set_duration = time.time() - set_start
+                        cache_operation_duration_seconds.labels(operation="set", layer=layer).observe(set_duration)
+
                     return value
                 finally:
                     # Release lock
@@ -335,6 +364,9 @@ class CacheManager:
                 await asyncio.sleep(0.1)
                 cached = await self.get(layer, identifier, **params)
                 if cached is not None:
+                    # Track delayed cache hit
+                    if METRICS_AVAILABLE:
+                        cache_hit_counter.labels(layer=layer).inc()
                     return cached
 
                 # Still no cache - fetch directly (fallback)
@@ -428,40 +460,128 @@ class CacheManager:
 cache_manager = CacheManager()
 
 
+def invalidate_cache(layer: str, identifier: Optional[str] = None, pattern: Optional[str] = None) -> None:
+    """
+    Synchronous wrapper for cache invalidation (for use in non-async contexts)
+
+    Args:
+        layer: Cache layer to invalidate
+        identifier: Specific identifier to invalidate (optional)
+        pattern: Pattern to match for bulk invalidation (optional)
+
+    Usage:
+        invalidate_cache(layer="analytics", identifier="scraping-status")
+        invalidate_cache(layer="content", pattern="articles-*")
+    """
+    import asyncio
+
+    async def _invalidate():
+        if pattern:
+            config = cache_manager.CACHE_LAYERS.get(layer, {"namespace": layer})
+            namespace = config["namespace"]
+            full_pattern = f"{namespace}:{cache_manager._version}:{pattern}"
+            await cache_manager.delete_pattern(full_pattern)
+        elif identifier:
+            await cache_manager.delete(layer, identifier)
+        else:
+            await cache_manager.invalidate_layer(layer)
+
+    # Run async invalidation
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If already in async context, create task
+            asyncio.create_task(_invalidate())
+        else:
+            # Run in new event loop
+            loop.run_until_complete(_invalidate())
+    except Exception as e:
+        logger.warning(f"Cache invalidation error: {e}")
+
+
+async def invalidate_cache_async(layer: str, identifier: Optional[str] = None, pattern: Optional[str] = None) -> None:
+    """
+    Async cache invalidation
+
+    Args:
+        layer: Cache layer to invalidate
+        identifier: Specific identifier to invalidate (optional)
+        pattern: Pattern to match for bulk invalidation (optional)
+
+    Usage:
+        await invalidate_cache_async(layer="analytics", identifier="scraping-status")
+        await invalidate_cache_async(layer="content", pattern="articles-*")
+    """
+    if pattern:
+        config = cache_manager.CACHE_LAYERS.get(layer, {"namespace": layer})
+        namespace = config["namespace"]
+        full_pattern = f"{namespace}:{cache_manager._version}:{pattern}"
+        await cache_manager.delete_pattern(full_pattern)
+    elif identifier:
+        await cache_manager.delete(layer, identifier)
+    else:
+        await cache_manager.invalidate_layer(layer)
+
+
 def cached(
     layer: str,
-    identifier_param: str = "id",
+    identifier_param: Optional[str] = None,
+    identifier: Optional[str] = None,
     ttl: Optional[int] = None,
+    include_params: Optional[List[str]] = None,
     **cache_params
 ):
     """
     Decorator for caching function results
 
     Usage:
+        # With dynamic identifier from parameter
         @cached(layer="article", identifier_param="article_id")
         async def get_article(article_id: int):
             ...
 
+        # With static identifier (for parameterless endpoints)
+        @cached(layer="analytics", identifier="scraping-status", ttl=300)
+        async def get_status():
+            ...
+
+        # Include specific params in cache key
+        @cached(layer="content", identifier="articles", include_params=["limit", "offset"])
+        async def get_articles(limit: int, offset: int):
+            ...
+
     Args:
         layer: Cache layer to use
-        identifier_param: Name of parameter to use as identifier
+        identifier_param: Name of parameter to use as identifier (dynamic)
+        identifier: Static identifier (for parameterless endpoints)
         ttl: Override default TTL
+        include_params: List of parameter names to include in cache key
         **cache_params: Additional static cache parameters
     """
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            # Extract identifier from kwargs
-            identifier = kwargs.get(identifier_param)
-            if not identifier:
-                # Try to get from args (assume first arg after self)
-                if len(args) > 0:
-                    identifier = str(args[0])
-                else:
-                    # No identifier - skip cache
-                    return await func(*args, **kwargs)
+            # Determine cache identifier
+            cache_id = identifier  # Use static identifier if provided
 
-            identifier = str(identifier)
+            if not cache_id and identifier_param:
+                # Extract dynamic identifier from kwargs
+                cache_id = kwargs.get(identifier_param)
+                if not cache_id and len(args) > 0:
+                    cache_id = str(args[0])
+
+            if not cache_id:
+                # No identifier - skip cache
+                return await func(*args, **kwargs)
+
+            cache_id = str(cache_id)
+
+            # Build cache params from function parameters if specified
+            effective_cache_params = dict(cache_params)
+            if include_params:
+                for param in include_params:
+                    if param in kwargs:
+                        effective_cache_params[param] = kwargs[param]
 
             # Create fetch function
             async def fetch_func():
@@ -470,10 +590,10 @@ def cached(
             # Get from cache or fetch
             return await cache_manager.get_or_set(
                 layer=layer,
-                identifier=identifier,
+                identifier=cache_id,
                 fetch_func=fetch_func,
                 ttl=ttl,
-                **cache_params
+                **effective_cache_params
             )
 
         return wrapper

@@ -13,7 +13,7 @@ This module implements secure authentication with:
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, status, Body
+from fastapi import APIRouter, HTTPException, Depends, status, Body, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -30,6 +30,7 @@ from ..core.security import (
 from ..database.connection import get_db
 from ..database.models import User
 from ..config.settings import settings
+from ..middleware.endpoint_rate_limiter import rate_limit
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -175,6 +176,7 @@ async def register(
 
 @router.post("/token", response_model=TokenResponse)
 async def login(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -184,9 +186,13 @@ async def login(
     OAuth2 compatible endpoint using username/password form data.
     The 'username' field should contain the user's email address.
 
+    **Security Enhancement**: Tokens are now stored in httpOnly cookies
+    to prevent XSS attacks. Tokens are also returned in response body
+    for backward compatibility during migration.
+
     Returns:
-    - **access_token**: Short-lived token (30 minutes)
-    - **refresh_token**: Long-lived token (7 days)
+    - **access_token**: Short-lived token (30 minutes) - ALSO SET IN COOKIE
+    - **refresh_token**: Long-lived token (7 days) - ALSO SET IN COOKIE
     - **user**: User profile information
     """
     # Authenticate user (username field contains email)
@@ -225,6 +231,31 @@ async def login(
     user.last_login = datetime.utcnow()
     db.commit()
 
+    # Set httpOnly cookies for XSS protection
+    # Access token - short-lived, sent with all API requests
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,  # Not accessible via JavaScript (XSS protection)
+        secure=settings.ENVIRONMENT.lower() == "production",  # HTTPS only in production
+        samesite="strict",  # CSRF protection
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 30 minutes in seconds
+        path="/"  # Available for all API endpoints
+    )
+
+    # Refresh token - long-lived, only sent to refresh endpoint
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # 7 days in seconds
+        path="/api/v1/auth/refresh"  # Only sent to refresh endpoint (security best practice)
+    )
+
+    # Return tokens in body for backward compatibility
+    # TODO: Remove this after frontend migration is complete
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -235,21 +266,40 @@ async def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_access_token(
-    request: RefreshTokenRequest,
+    request_obj: Request,
+    response: Response,
+    request: RefreshTokenRequest = None,
     db: Session = Depends(get_db)
 ):
     """
     Refresh access token using refresh token.
 
+    **Security Enhancement**: Tokens are now read from httpOnly cookies first,
+    with fallback to request body for backward compatibility.
+
     Provide a valid refresh token to obtain a new access token
     without requiring the user to log in again.
 
-    - **refresh_token**: Valid refresh token from login
+    - **refresh_token**: Valid refresh token from login (cookie or request body)
 
     Returns new access token and refresh token pair.
     """
+    # Try to get refresh token from cookie first (secure method)
+    refresh_token_value = request_obj.cookies.get("refresh_token")
+
+    # Fallback to request body for backward compatibility
+    if not refresh_token_value and request and request.refresh_token:
+        refresh_token_value = request.refresh_token
+
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Verify refresh token
-    payload = verify_token(request.refresh_token, token_type="refresh")
+    payload = verify_token(refresh_token_value, token_type="refresh")
 
     if payload is None:
         raise HTTPException(
@@ -288,7 +338,7 @@ async def refresh_access_token(
         )
 
     # Verify refresh token matches stored token
-    if user.refresh_token != request.refresh_token:
+    if user.refresh_token != refresh_token_value:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has been revoked"
@@ -321,6 +371,28 @@ async def refresh_access_token(
     user.last_active = datetime.utcnow()
     db.commit()
 
+    # Set httpOnly cookies for XSS protection (same as login)
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/"
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/api/v1/auth/refresh"
+    )
+
+    # Return tokens in body for backward compatibility
     return TokenResponse(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -331,19 +403,34 @@ async def refresh_access_token(
 
 @router.post("/logout")
 async def logout(
+    response: Response,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    Logout user by revoking refresh token.
+    Logout user by revoking refresh token and clearing cookies.
+
+    **Security Enhancement**: Clears httpOnly cookies to ensure
+    complete logout on both client and server.
 
     Invalidates the current refresh token, requiring the user
     to login again to obtain new tokens.
     """
-    # Revoke refresh token
+    # Revoke refresh token in database
     current_user.refresh_token = None
     current_user.refresh_token_expires_at = None
     db.commit()
+
+    # Clear httpOnly cookies
+    response.delete_cookie(
+        key="access_token",
+        path="/"
+    )
+
+    response.delete_cookie(
+        key="refresh_token",
+        path="/api/v1/auth/refresh"
+    )
 
     return {"message": "Successfully logged out"}
 
@@ -399,7 +486,9 @@ async def update_current_user(
 
 
 @router.post("/password-reset")
+@rate_limit(max_requests=3, window_seconds=3600)  # 3 requests per hour
 async def request_password_reset(
+    http_request: Request,
     request: PasswordResetRequest,
     db: Session = Depends(get_db)
 ):
