@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.13.0",
-    "@next/bundle-analyzer": "^14.2.33",
+    "@next/bundle-analyzer": "^16.0.3",
     "@playwright/test": "^1.40.1",
     "@swc/jest": "^0.2.29",
     "@testing-library/jest-dom": "^6.1.5",
