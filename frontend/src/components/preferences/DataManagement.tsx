@@ -11,6 +11,7 @@ import { usePreferences } from '@/lib/preferences/use-preferences'
 import { PreferenceCard } from '@/components/ui/PreferenceCard'
 import { exportUserData, deleteUserAccount } from '@/lib/preferences/preferences-api'
 import { useAuth } from '@/hooks/useAuth'
+import { logger } from '@/utils/logger'
 
 export function DataManagement() {
   const { preferences, resetPreferences } = usePreferences()
@@ -36,7 +37,7 @@ export function DataManagement() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Failed to export data:', error)
+      logger.error('Failed to export data', error)
       alert('Failed to export data. Please try again.')
     } finally {
       setIsExporting(false)
@@ -50,12 +51,10 @@ export function DataManagement() {
 
     setIsClearingProgress(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch('/api/users/me/progress', {
+      // Cookie is automatically sent with request (credentials: 'include')
+      const response = await fetch('/api/v1/users/me/progress', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'  // Send httpOnly cookies
       })
 
       if (!response.ok) {
@@ -65,7 +64,7 @@ export function DataManagement() {
       const result = await response.json()
       alert(`Progress cleared successfully!\n\nDeleted:\n- ${result.deleted_counts.vocabulary_items} vocabulary items\n- ${result.deleted_counts.content_progress} reading progress records\n- ${result.deleted_counts.learning_sessions} learning sessions`)
     } catch (error) {
-      console.error('Failed to clear progress:', error)
+      logger.error('Failed to clear progress', error)
       alert('Failed to clear progress. Please try again.')
     } finally {
       setIsClearingProgress(false)
@@ -81,7 +80,7 @@ export function DataManagement() {
       await resetPreferences()
       alert('Preferences reset to defaults successfully.')
     } catch (error) {
-      console.error('Failed to reset preferences:', error)
+      logger.error('Failed to reset preferences', error)
       alert('Failed to reset preferences. Please try again.')
     }
   }
@@ -94,12 +93,10 @@ export function DataManagement() {
 
     setIsDeleting(true)
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await fetch('/api/users/me/account', {
+      // Cookie is automatically sent with request (credentials: 'include')
+      const response = await fetch('/api/v1/users/me/account', {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'  // Send httpOnly cookies
       })
 
       if (!response.ok) {
@@ -113,7 +110,7 @@ export function DataManagement() {
       await logout()
       window.location.href = '/'
     } catch (error) {
-      console.error('Failed to delete account:', error)
+      logger.error('Failed to delete account', error)
       alert('Failed to delete account. Please try again or contact support.')
     } finally {
       setIsDeleting(false)

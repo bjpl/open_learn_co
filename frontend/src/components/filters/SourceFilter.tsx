@@ -9,6 +9,7 @@ import { useFilters } from '@/lib/filters/filter-hooks';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { FilterOption } from '@/lib/filters/filter-types';
 import { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 
 export function SourceFilter() {
   const { filters, updateFilters } = useFilters();
@@ -36,7 +37,7 @@ export function SourceFilter() {
           setSources(getDefaultSources());
         }
       } catch (error) {
-        console.error('Failed to fetch sources:', error);
+        logger.error('Failed to fetch sources', error);
         // Fallback to hardcoded list
         setSources(getDefaultSources());
       } finally {

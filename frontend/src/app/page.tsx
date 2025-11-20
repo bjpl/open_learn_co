@@ -23,7 +23,7 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         // Get articles
-        const articlesResponse = await fetch(`${API_URL}/api/scraping/content/simple?limit=20`)
+        const articlesResponse = await fetch(`${API_URL}/api/v1/scraping/content/simple?limit=20`)
         const articlesData = await articlesResponse.json()
         setRecentArticles(articlesData.items || [])
         setArticleCount(articlesData.count || 0)
@@ -41,7 +41,7 @@ export default function Dashboard() {
         }))
         setSourceStats(stats)
       } catch (error) {
-        console.error('Failed to fetch articles:', error)
+        logger.error('Failed to fetch articles', error)
       } finally {
         setLoading(false)
       }

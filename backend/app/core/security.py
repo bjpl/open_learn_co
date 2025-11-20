@@ -11,7 +11,7 @@ This module provides production-grade security features:
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -25,7 +25,9 @@ from ..database.models import User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+# auto_error=False makes it optional (won't raise 401 if header missing)
+# This allows us to check cookies first
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)
 
 # JWT Configuration
 ALGORITHM = "HS256"
@@ -194,17 +196,22 @@ def verify_token(token: str, token_type: str = "access") -> Optional[Dict[str, A
 # ============================================================================
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme)
 ) -> User:
     """
     Get the current authenticated user from JWT token.
 
+    **Security Enhancement**: Now checks httpOnly cookies first (secure),
+    then falls back to Authorization header (backward compatibility).
+
     This dependency can be used to protect routes that require authentication.
 
     Args:
-        token: JWT access token from request header
+        request: FastAPI Request object (to access cookies)
         db: Database session
+        token: JWT access token from Authorization header (optional)
 
     Returns:
         User object for the authenticated user
@@ -223,8 +230,18 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # Try to get token from httpOnly cookie first (secure method)
+    token_value = request.cookies.get("access_token")
+
+    # Fallback to Authorization header for backward compatibility
+    if not token_value and token:
+        token_value = token
+
+    if not token_value:
+        raise credentials_exception
+
     # Verify token
-    payload = verify_token(token, token_type="access")
+    payload = verify_token(token_value, token_type="access")
     if payload is None:
         raise credentials_exception
 

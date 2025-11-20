@@ -6,6 +6,9 @@
  * In production: Only logs errors (to Sentry if configured)
  */
 
+/* eslint-disable no-console */
+// This file is the logger implementation - console usage is intentional
+
 const isDev = process.env.NODE_ENV === 'development'
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'

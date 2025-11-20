@@ -3,6 +3,7 @@
 import { X, ExternalLink, Calendar, User, Hash, FileText, TrendingUp, BookOpen, Share2, Link2, Twitter, Facebook, Linkedin, Check } from 'lucide-react'
 import { ComponentErrorBoundary } from './error-boundary'
 import { useState } from 'react'
+import { logger } from '@/utils/logger'
 
 interface Article {
   id: number
@@ -53,7 +54,7 @@ export default function ArticleDetail({ article, isOpen, onClose }: ArticleDetai
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('Failed to copy:', error)
+      logger.error('Failed to copy link', error)
     }
   }
 

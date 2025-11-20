@@ -44,11 +44,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" aria-label="Login form">
       {/* Email Field */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-          Email Address
+          Email Address <span className="text-red-600" aria-hidden="true">*</span>
         </label>
         <input
           {...register('email')}
@@ -58,16 +58,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="you@example.com"
           disabled={isLoading}
+          aria-required="true"
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'email-error' : undefined}
         />
         {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+          <p id="email-error" className="mt-1 text-sm text-red-600" role="alert">
+            {errors.email.message}
+          </p>
         )}
       </div>
 
       {/* Password Field */}
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-          Password
+          Password <span className="text-red-600" aria-hidden="true">*</span>
         </label>
         <div className="relative">
           <input
@@ -78,6 +83,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
             placeholder="Enter your password"
             disabled={isLoading}
+            aria-required="true"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? 'password-error' : undefined}
           />
           <button
             type="button"
@@ -86,11 +94,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
             tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
-            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
           </button>
         </div>
         {errors.password && (
-          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+          <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
+            {errors.password.message}
+          </p>
         )}
       </div>
 
@@ -122,10 +132,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
         type="submit"
         disabled={isLoading}
         className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label={isLoading ? 'Signing in, please wait' : 'Sign in to your account'}
       >
         {isLoading ? (
           <>
-            <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+            <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" aria-hidden="true" />
             Signing in...
           </>
         ) : (
