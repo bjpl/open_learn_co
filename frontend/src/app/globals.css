@@ -1,3 +1,81 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Accessibility Improvements - WCAG 2.1 Level AA */
+
+/* Skip Navigation Link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #1F2937;
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0 0 4px 0;
+  font-weight: 500;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 2px solid #F59E0B;
+  outline-offset: 2px;
+}
+
+/* Global Focus Indicators - Yellow-500 (#F59E0B) for brand consistency */
+*:focus {
+  outline: 2px solid #F59E0B;
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #F59E0B;
+  outline-offset: 2px;
+}
+
+/* Enhanced focus for interactive elements */
+button:focus,
+a:focus,
+input:focus,
+textarea:focus,
+select:focus,
+[role="button"]:focus,
+[role="link"]:focus,
+[tabindex]:not([tabindex="-1"]):focus {
+  outline: 2px solid #F59E0B;
+  outline-offset: 2px;
+}
+
+/* Focus within for container elements */
+.focus-within\:ring:focus-within {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Visible on focus (for skip links and other hidden elements) */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}

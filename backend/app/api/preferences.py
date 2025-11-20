@@ -163,7 +163,7 @@ def get_default_preferences(user_id: str) -> UserPreferences:
 # API Endpoints
 # ============================================================================
 
-@router.get("/api/preferences", response_model=UserPreferences)
+@router.get("/preferences", response_model=UserPreferences)
 async def get_user_preferences(user_id: str = Query(..., description="User ID")):
     """
     Get user preferences
@@ -178,7 +178,7 @@ async def get_user_preferences(user_id: str = Query(..., description="User ID"))
     return preferences_db[user_id]
 
 
-@router.put("/api/preferences", response_model=UserPreferences)
+@router.put("/preferences", response_model=UserPreferences)
 async def update_user_preferences(preferences: UserPreferences):
     """
     Update user preferences
@@ -198,7 +198,7 @@ async def update_user_preferences(preferences: UserPreferences):
     return preferences
 
 
-@router.delete("/api/preferences", response_model=UserPreferences)
+@router.delete("/preferences", response_model=UserPreferences)
 async def reset_user_preferences(user_id: str = Query(..., description="User ID")):
     """
     Reset user preferences to defaults
@@ -213,7 +213,7 @@ async def reset_user_preferences(user_id: str = Query(..., description="User ID"
     return get_default_preferences(user_id)
 
 
-@router.get("/api/preferences/export")
+@router.get("/preferences/export")
 async def export_user_data(
     user_id: str = Query(..., description="User ID"),
     format: Literal['json', 'csv'] = Query('json', description="Export format")
@@ -275,7 +275,7 @@ async def export_user_data(
         )
 
 
-@router.delete("/api/users/me/account")
+@router.delete("/users/me/account")
 async def delete_user_account(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -346,7 +346,7 @@ async def delete_user_account(
         )
 
 
-@router.delete("/api/users/me/progress")
+@router.delete("/users/me/progress")
 async def clear_user_progress(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -401,7 +401,7 @@ async def clear_user_progress(
         )
 
 
-@router.get("/api/preferences/health")
+@router.get("/preferences/health")
 async def health_check():
     """Health check endpoint"""
     return {

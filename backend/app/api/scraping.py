@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_async_db
 from app.database.models import ScrapedContent
+from app.core.cache import cached, invalidate_cache_async
 from scrapers.sources.media.el_tiempo import ElTiempoScraper
 from scrapers.sources.media.el_espectador import ElEspectadorScraper
 from scrapers.sources.media.semana import SemanaScraper
@@ -28,6 +29,7 @@ SCRAPER_REGISTRY = {
 
 
 @router.get("/sources")
+@cached(layer="metadata", identifier="sources-list", ttl=1800, include_params=["category", "priority", "format"])
 async def list_sources(
     category: Optional[str] = None,
     priority: Optional[str] = None,
@@ -147,8 +149,13 @@ async def run_scraper(scraper_class, source_config: Dict[str, Any]):
 
                 await db.commit()
 
+                # Invalidate related caches after successful scraping
+                await invalidate_cache_async(layer="analytics", identifier="scraping-status")
+                await invalidate_cache_async(layer="content", pattern="articles-simple*")
+
                 # Log success
                 print(f"✅ Successfully scraped {len(articles)} articles from {source_config.get('name', 'Unknown')}")
+                print(f"🔄 Cache invalidated for analytics and content layers")
 
             except Exception as e:
                 await db.rollback()
@@ -157,6 +164,7 @@ async def run_scraper(scraper_class, source_config: Dict[str, Any]):
 
 
 @router.get("/status")
+@cached(layer="analytics", identifier="scraping-status", ttl=300)
 async def get_scraping_status(
     db: AsyncSession = Depends(get_async_db)
 ) -> Dict[str, Any]:
@@ -284,6 +292,7 @@ async def get_scraped_content(
 
 
 @router.get("/content/simple")
+@cached(layer="content", identifier="articles-simple", ttl=900, include_params=["limit", "offset"])
 async def get_content_simple(
     limit: int = 10,  # Reduced from 20 to 10 for better performance
     offset: int = 0,  # Add offset for server-side pagination

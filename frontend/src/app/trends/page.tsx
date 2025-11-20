@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Tag, Hash, Newspaper, BarChart3, Clock } from 'lucide-react'
 import { RouteErrorBoundary, ComponentErrorBoundary } from '@/components/error-boundary'
 import ArticleDetail from '@/components/ArticleDetail'
+import { logger } from '@/utils/logger'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002'
 
@@ -62,7 +63,7 @@ export default function TrendsPage() {
         setSourceDistribution(sortedSources)
 
       } catch (error) {
-        console.error('Failed to fetch trending data:', error)
+        logger.error('Failed to fetch trending data', error)
       } finally {
         setLoading(false)
       }

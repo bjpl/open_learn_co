@@ -40,7 +40,7 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
   };
 
   return (
-    <div className={`bg-white border-r border-gray-200 h-full flex flex-col ${className}`}>
+    <aside className={`bg-white border-r border-gray-200 h-full flex flex-col ${className}`} aria-label="Article filters">
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
@@ -51,7 +51,7 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
               className="lg:hidden p-2 hover:bg-gray-100 rounded-md"
               aria-label="Close filters"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -60,13 +60,14 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
 
         {/* Active filter count and clear button */}
         {activeCount > 0 && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" role="status" aria-live="polite">
             <span className="text-sm text-gray-600">
               {activeCount} filter{activeCount > 1 ? 's' : ''} active
             </span>
             <button
               onClick={clearFilters}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              aria-label={`Clear all ${activeCount} active filters`}
             >
               Clear all
             </button>
@@ -78,7 +79,7 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
       {activeLabels.length > 0 && (
         <div className="p-4 border-b border-gray-200 space-y-2">
           <h3 className="text-xs font-medium text-gray-700 uppercase">Active Filters</h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" role="list" aria-label="Active filters">
             {activeLabels.map((item) => (
               <FilterTag
                 key={item.key}
@@ -144,7 +145,7 @@ export function FilterPanel({ className = '', onClose, showSearch = true }: Filt
           <DifficultyFilter />
         </FilterSection>
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -156,23 +157,34 @@ interface FilterSectionProps {
 }
 
 function FilterSection({ title, isExpanded, onToggle, children }: FilterSectionProps) {
+  const sectionId = `filter-section-${title.toLowerCase().replace(/\s+/g, '-')}`;
+
   return (
     <div className="border-b border-gray-200">
-      <button
-        onClick={onToggle}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
-      >
-        <span className="font-medium text-gray-900">{title}</span>
-        <svg
-          className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <h3>
+        <button
+          onClick={onToggle}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+          aria-expanded={isExpanded}
+          aria-controls={sectionId}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isExpanded && <div className="px-4 py-3">{children}</div>}
+          <span className="font-medium text-gray-900">{title}</span>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </h3>
+      {isExpanded && (
+        <div id={sectionId} className="px-4 py-3" role="region" aria-label={`${title} filters`}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }

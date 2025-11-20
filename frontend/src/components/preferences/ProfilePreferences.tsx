@@ -12,6 +12,7 @@ import { PreferenceCard } from '@/components/ui/PreferenceCard'
 import { AvatarUpload } from '@/components/ui/AvatarUpload'
 import { Select, SelectOption } from '@/components/ui/Select'
 import type { LanguageInterface, DateFormat } from '@/lib/preferences/preferences-types'
+import { logger } from '@/utils/logger'
 
 const LANGUAGE_OPTIONS: SelectOption[] = [
   { value: 'es', label: 'Español' },
@@ -52,9 +53,9 @@ export function ProfilePreferences() {
       // Update profile with new avatar URL
       updateProfile({ avatar: response.avatar_url })
 
-      console.log('Avatar uploaded successfully:', response.metadata)
+      logger.info('Avatar uploaded successfully', response.metadata)
     } catch (error) {
-      console.error('Avatar upload failed:', error)
+      logger.error('Avatar upload failed', error)
       // You may want to show a toast notification here
       alert(error instanceof Error ? error.message : 'Avatar upload failed')
     }
